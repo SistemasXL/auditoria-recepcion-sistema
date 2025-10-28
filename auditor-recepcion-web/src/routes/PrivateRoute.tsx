@@ -8,17 +8,18 @@ interface PrivateRouteProps {
 }
 
 export const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  const location = useLocation();
+  // 🔓 COMENTAR TEMPORALMENTE PARA DESARROLLO
+  // const { isAuthenticated, isLoading } = useAuth();
+  // const location = useLocation();
 
-  if (isLoading) {
-    return <Loader fullScreen message="Verificando autenticación..." />;
-  }
+  // if (isLoading) {
+  //   return <Loader fullScreen message="Verificando autenticación..." />;
+  // }
 
-  if (!isAuthenticated) {
-    // Guardar la ubicación a la que intentaba acceder
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
+  // if (!isAuthenticated) {
+  //   return <Navigate to="/login" state={{ from: location }} replace />;
+  // }
 
+  // ✅ PERMITIR ACCESO SIN AUTENTICACIÓN (SOLO PARA DESARROLLO)
   return <>{children}</>;
 };

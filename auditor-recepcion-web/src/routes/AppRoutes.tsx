@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { MainLayout } from '@/layouts/MainLayout';
-import { AuthLayout } from '@/layouts/AuthLayout';
+import { MainLayout } from '../layouts/MainLayout';
+import { AuthLayout } from '../layouts/AuthLayout';
 import { PrivateRoute } from './PrivateRoute';
 import { RoleRoute } from './RoleRoute';
 import { RolUsuario } from '@types/usuario.types';
