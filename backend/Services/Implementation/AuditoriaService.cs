@@ -27,9 +27,9 @@ namespace AuditoriaRecepcion.Services.Implementation
         {
             try
             {
-                var query = _context.Auditorias
+                var query = _context.AuditoriasRecepcion
                     .Include(a => a.Proveedor)
-                    .Include(a => a.UsuarioCreacion)
+                    .Include(a => a.UsuarioAuditor)
                     .Include(a => a.Detalles)
                     .Include(a => a.Incidencias)
                     .AsNoTracking()
@@ -37,13 +37,13 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 // Aplicar filtros
                 if (!string.IsNullOrEmpty(filtro.Estado))
-                    query = query.Where(a => a.Estado == filtro.Estado);
+                    query = query.Where(a => a.EstadoAuditoria == filtro.Estado);
 
                 if (filtro.FechaDesde.HasValue)
-                    query = query.Where(a => a.FechaRecepcion >= filtro.FechaDesde.Value);
+                    query = query.Where(a => a.FechaInicio >= filtro.FechaDesde.Value);
 
                 if (filtro.FechaHasta.HasValue)
-                    query = query.Where(a => a.FechaRecepcion <= filtro.FechaHasta.Value);
+                    query = query.Where(a => a.FechaInicio <= filtro.FechaHasta.Value);
 
                 if (filtro.UsuarioId.HasValue)
                     query = query.Where(a => a.UsuarioCreacionID == filtro.UsuarioId.Value);
@@ -66,18 +66,18 @@ namespace AuditoriaRecepcion.Services.Implementation
                     {
                         AuditoriaID = a.AuditoriaID,
                         NumeroAuditoria = a.NumeroAuditoria,
-                        FechaRecepcion = a.FechaRecepcion,
+                        FechaRecepcion = a.FechaInicio,
                         ProveedorID = a.ProveedorID,
                         ProveedorNombre = a.Proveedor.RazonSocial,
                         NumeroOrdenCompra = a.NumeroOrdenCompra,
                         NumeroRemito = a.NumeroRemito,
-                        Estado = a.Estado,
+                        Estado = a.EstadoAuditoria,
                         CantidadProductos = a.Detalles.Count,
                         CantidadIncidencias = a.Incidencias.Count,
                         UsuarioCreacionID = a.UsuarioCreacionID,
-                        UsuarioCreacionNombre = a.UsuarioCreacion.NombreCompleto,
+                        UsuarioCreacionNombre = a.UsuarioAuditor.NombreCompleto,
                         FechaCreacion = a.FechaCreacion,
-                        FechaCierre = a.FechaCierre,
+                        FechaCierre = a.FechaFinalizacion,
                         Observaciones = a.Observaciones
                     })
                     .ToListAsync();
@@ -95,9 +95,9 @@ namespace AuditoriaRecepcion.Services.Implementation
         {
             try
             {
-                var auditoria = await _context.Auditorias
+                var auditoria = await _context.AuditoriasRecepcion
                     .Include(a => a.Proveedor)
-                    .Include(a => a.UsuarioCreacion)
+                    .Include(a => a.UsuarioAuditor)
                     .Include(a => a.UsuarioModificacion)
                     .Include(a => a.Detalles)
                         .ThenInclude(d => d.Producto)
@@ -135,7 +135,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                 var auditoria = new Auditoria
                 {
                     NumeroAuditoria = numeroAuditoria,
-                    FechaRecepcion = dto.FechaRecepcion,
+                    FechaRecepcion = dto.FechaInicio,
                     ProveedorID = dto.ProveedorID,
                     NumeroOrdenCompra = dto.NumeroOrdenCompra,
                     NumeroRemito = dto.NumeroRemito,
@@ -145,7 +145,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                     FechaCreacion = DateTime.Now
                 };
 
-                _context.Auditorias.Add(auditoria);
+                _context.AuditoriasRecepcion.Add(auditoria);
                 await _context.SaveChangesAsync();
 
                 // Registrar auditoría de acción
@@ -170,18 +170,18 @@ namespace AuditoriaRecepcion.Services.Implementation
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var auditoria = await _context.Auditorias
+                var auditoria = await _context.AuditoriasRecepcion
                     .Include(a => a.Proveedor)
                     .FirstOrDefaultAsync(a => a.AuditoriaID == id);
 
                 if (auditoria == null)
                     return null;
 
-                if (auditoria.Estado == "Cerrada")
+                if (auditoria.EstadoAuditoria == "Cerrada")
                     throw new InvalidOperationException("No se puede modificar una auditoría cerrada");
 
                 // Actualizar datos
-                auditoria.FechaRecepcion = dto.FechaRecepcion;
+                auditoria.FechaInicio = dto.FechaInicio;
                 auditoria.ProveedorID = dto.ProveedorID;
                 auditoria.NumeroOrdenCompra = dto.NumeroOrdenCompra;
                 auditoria.NumeroRemito = dto.NumeroRemito;
@@ -213,25 +213,25 @@ namespace AuditoriaRecepcion.Services.Implementation
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var auditoria = await _context.Auditorias
+                var auditoria = await _context.AuditoriasRecepcion
                     .Include(a => a.Incidencias)
                     .FirstOrDefaultAsync(a => a.AuditoriaID == id);
 
                 if (auditoria == null)
                     throw new InvalidOperationException("Auditoría no encontrada");
 
-                if (auditoria.Estado == "Cerrada")
+                if (auditoria.EstadoAuditoria == "Cerrada")
                     throw new InvalidOperationException("La auditoría ya está cerrada");
 
                 // Verificar incidencias pendientes
                 var incidenciasPendientes = auditoria.Incidencias
-                    .Count(i => i.EstadoResolucion == "Pendiente" || i.EstadoResolucion == "EnProceso");
+                    .Count(i => i.EstadoIncidencia == "Pendiente" || i.EstadoIncidencia == "EnProceso");
 
                 if (incidenciasPendientes > 0)
                     throw new InvalidOperationException($"No se puede cerrar la auditoría. Hay {incidenciasPendientes} incidencia(s) pendiente(s)");
 
-                auditoria.Estado = "Cerrada";
-                auditoria.FechaCierre = DateTime.Now;
+                auditoria.EstadoAuditoria = "Cerrada";
+                auditoria.FechaFinalizacion = DateTime.Now;
                 auditoria.UsuarioModificacionID = userId;
                 auditoria.FechaModificacion = DateTime.Now;
 
@@ -257,14 +257,14 @@ namespace AuditoriaRecepcion.Services.Implementation
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var auditoria = await _context.Auditorias.FindAsync(id);
+                var auditoria = await _context.AuditoriasRecepcion.FindAsync(id);
                 if (auditoria == null)
                     throw new InvalidOperationException("Auditoría no encontrada");
 
-                if (auditoria.Estado == "Cerrada")
+                if (auditoria.EstadoAuditoria == "Cerrada")
                     throw new InvalidOperationException("No se puede eliminar una auditoría cerrada");
 
-                _context.Auditorias.Remove(auditoria);
+                _context.AuditoriasRecepcion.Remove(auditoria);
                 await _context.SaveChangesAsync();
 
                 // Registrar auditoría de acción
@@ -287,29 +287,29 @@ namespace AuditoriaRecepcion.Services.Implementation
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var auditoria = await _context.Auditorias.FindAsync(auditoriaId);
+                var auditoria = await _context.AuditoriasRecepcion.FindAsync(auditoriaId);
                 if (auditoria == null)
                     throw new InvalidOperationException("Auditoría no encontrada");
 
-                if (auditoria.Estado == "Cerrada")
+                if (auditoria.EstadoAuditoria == "Cerrada")
                     throw new InvalidOperationException("No se pueden agregar productos a una auditoría cerrada");
 
                 var producto = await _context.Productos.FindAsync(dto.ProductoID);
                 if (producto == null)
                     throw new InvalidOperationException("Producto no encontrado");
 
-                var detalle = new DetalleAuditoria
+                var detalle = new AuditoriaDetalle
                 {
                     AuditoriaID = auditoriaId,
                     ProductoID = dto.ProductoID,
                     CantidadEsperada = dto.CantidadEsperada,
                     CantidadRecibida = dto.CantidadRecibida,
-                    EstadoProducto = dto.EstadoProducto,
+                    EstadoItem = dto.EstadoProducto,
                     Observaciones = dto.Observaciones,
                     FechaRegistro = DateTime.Now
                 };
 
-                _context.DetallesAuditoria.Add(detalle);
+                _context.AuditoriaDetalle.Add(detalle);
 
                 // Si hay diferencias o daños, crear incidencia automáticamente
                 if (dto.CantidadEsperada != dto.CantidadRecibida || dto.EstadoProducto != "Bueno")
@@ -359,7 +359,7 @@ namespace AuditoriaRecepcion.Services.Implementation
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var detalle = await _context.DetallesAuditoria
+                var detalle = await _context.AuditoriaDetalle
                     .Include(d => d.Producto)
                     .Include(d => d.Auditoria)
                     .FirstOrDefaultAsync(d => d.DetalleAuditoriaID == detalleId && d.AuditoriaID == auditoriaId);
@@ -367,12 +367,12 @@ namespace AuditoriaRecepcion.Services.Implementation
                 if (detalle == null)
                     throw new InvalidOperationException("Detalle no encontrado");
 
-                if (detalle.Auditoria.Estado == "Cerrada")
+                if (detalle.Auditoria.EstadoAuditoria == "Cerrada")
                     throw new InvalidOperationException("No se pueden modificar productos en una auditoría cerrada");
 
                 detalle.CantidadEsperada = dto.CantidadEsperada;
                 detalle.CantidadRecibida = dto.CantidadRecibida;
-                detalle.EstadoProducto = dto.EstadoProducto;
+                detalle.EstadoItem = dto.EstadoProducto;
                 detalle.Observaciones = dto.Observaciones;
 
                 await _context.SaveChangesAsync();
@@ -399,17 +399,17 @@ namespace AuditoriaRecepcion.Services.Implementation
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var detalle = await _context.DetallesAuditoria
+                var detalle = await _context.AuditoriaDetalle
                     .Include(d => d.Auditoria)
                     .FirstOrDefaultAsync(d => d.DetalleAuditoriaID == detalleId && d.AuditoriaID == auditoriaId);
 
                 if (detalle == null)
                     throw new InvalidOperationException("Detalle no encontrado");
 
-                if (detalle.Auditoria.Estado == "Cerrada")
+                if (detalle.Auditoria.EstadoAuditoria == "Cerrada")
                     throw new InvalidOperationException("No se pueden eliminar productos de una auditoría cerrada");
 
-                _context.DetallesAuditoria.Remove(detalle);
+                _context.AuditoriaDetalle.Remove(detalle);
                 await _context.SaveChangesAsync();
 
                 // Registrar auditoría de acción
@@ -438,7 +438,7 @@ namespace AuditoriaRecepcion.Services.Implementation
             var year = DateTime.Now.Year;
             var month = DateTime.Now.Month.ToString("D2");
             
-            var ultimaAuditoria = await _context.Auditorias
+            var ultimaAuditoria = await _context.AuditoriasRecepcion
                 .Where(a => a.NumeroAuditoria.StartsWith($"AUD-{year}{month}"))
                 .OrderByDescending(a => a.NumeroAuditoria)
                 .FirstOrDefaultAsync();
@@ -459,38 +459,46 @@ namespace AuditoriaRecepcion.Services.Implementation
         // Métodos privados auxiliares
         private async Task RegistrarAuditoriaAccionAsync(int userId, string accion, string tabla, int registroId)
         {
-            var auditoria = new AuditoriaAccion
+            try
             {
-                UsuarioID = userId,
-                TipoAccion = accion,
-                TablaAfectada = tabla,
-                RegistroID = registroId,
-                FechaHora = DateTime.Now
-            };
+                var log = new AuditoriaLog
+                {
+                    UsuarioID = userId,
+                    TipoAccion = accion,
+                    TablaAfectada = tabla,
+                    RegistroID = registroId,
+                    FechaHora = DateTime.Now
+                };
 
-            _context.AuditoriasAcciones.Add(auditoria);
-            await _context.SaveChangesAsync();
+                _context.AuditoriaLogs.Add(log);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al registrar auditoría de acción");
+                // No lanzar excepción para no afectar el flujo principal
+            }
         }
 
-        private AuditoriaDTO MapToAuditoriaDTO(Auditoria auditoria, Proveedor proveedor)
+        private AuditoriaDTO MapToAuditoriaDTO(Models.AuditoriaRecepcion auditoria, Proveedor proveedor)
         {
             return new AuditoriaDTO
             {
                 AuditoriaID = auditoria.AuditoriaID,
                 NumeroAuditoria = auditoria.NumeroAuditoria,
-                FechaRecepcion = auditoria.FechaRecepcion,
+                FechaRecepcion = auditoria.FechaInicio,
                 ProveedorID = auditoria.ProveedorID,
-                ProveedorNombre = proveedor.RazonSocial,
-                NumeroOrdenCompra = auditoria.NumeroOrdenCompra,
-                NumeroRemito = auditoria.NumeroRemito,
-                Estado = auditoria.Estado,
-                FechaCreacion = auditoria.FechaCreacion,
-                FechaCierre = auditoria.FechaCierre,
-                Observaciones = auditoria.Observaciones
+                ProveedorNombre = proveedor.NombreProveedor,
+                NumeroOrdenCompra = auditoria.OrdenCompraID?.ToString() ?? "",
+                NumeroRemito = "",
+                Estado = auditoria.EstadoAuditoria,
+                FechaCreacion = auditoria.FechaInicio,
+                FechaCierre = auditoria.FechaFinalizacion,
+                Observaciones = auditoria.ObservacionesGenerales
             };
         }
 
-        private AuditoriaDetalleDTO MapToAuditoriaDetalleDTO(Auditoria auditoria)
+        private AuditoriaDetalleDTO MapToAuditoriaDetalleDTO(Models.AuditoriaRecepcion auditoria)
         {
             // Implementar mapeo completo con todas las relaciones
             return new AuditoriaDetalleDTO
@@ -501,7 +509,7 @@ namespace AuditoriaRecepcion.Services.Implementation
             };
         }
 
-        private DetalleAuditoriaDTO MapToDetalleAuditoriaDTO(DetalleAuditoria detalle, Producto producto)
+        private DetalleAuditoriaDTO MapToDetalleAuditoriaDTO(AuditoriaDetalle detalle, Producto producto)
         {
             return new DetalleAuditoriaDTO
             {
@@ -514,7 +522,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                 CantidadEsperada = detalle.CantidadEsperada,
                 CantidadRecibida = detalle.CantidadRecibida,
                 Diferencia = detalle.CantidadEsperada - detalle.CantidadRecibida,
-                EstadoProducto = detalle.EstadoProducto,
+                EstadoProducto = detalle.EstadoItem,
                 Observaciones = detalle.Observaciones,
                 FechaRegistro = detalle.FechaRegistro
             };

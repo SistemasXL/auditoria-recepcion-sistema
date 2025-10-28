@@ -34,7 +34,7 @@ namespace AuditoriaRecepcion.Services.Implementation
             {
                 // Buscar usuario
                 var usuario = await _context.Usuarios
-                    .FirstOrDefaultAsync(u => u.Usuario == request.Usuario && u.Activo);
+                    .FirstOrDefaultAsync(u => u.NombreUsuario == request.Usuario && u.Activo);
 
                 if (usuario == null)
                 {
@@ -50,7 +50,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                 }
 
                 // Generar tokens
-                var token = GenerateJwtToken(usuario.UsuarioID, usuario.Usuario, usuario.Rol);
+                var token = GenerateJwtToken(usuario.UsuarioID, usuario.NombreUsuario, usuario.Rol);
                 var refreshToken = GenerateRefreshToken();
 
                 // Guardar refresh token
@@ -94,7 +94,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                 }
 
                 // Generar nuevos tokens
-                var token = GenerateJwtToken(usuario.UsuarioID, usuario.Usuario, usuario.Rol);
+                var token = GenerateJwtToken(usuario.UsuarioID, usuario.NombreUsuario, usuario.Rol);
                 var newRefreshToken = GenerateRefreshToken();
 
                 usuario.RefreshToken = newRefreshToken;
@@ -261,7 +261,7 @@ namespace AuditoriaRecepcion.Services.Implementation
             return new UsuarioDTO
             {
                 UsuarioID = usuario.UsuarioID,
-                Usuario = usuario.Usuario,
+                Usuario = usuario.NombreUsuario,
                 NombreCompleto = usuario.NombreCompleto,
                 Email = usuario.Email,
                 Rol = usuario.Rol,

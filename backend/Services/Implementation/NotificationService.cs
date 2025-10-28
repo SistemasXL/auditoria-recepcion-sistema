@@ -186,8 +186,8 @@ namespace AuditoriaRecepcion.Services.Implementation
         {
             try
             {
-                var auditoria = await _context.Auditorias
-                    .Include(a => a.UsuarioCreacion)
+                var auditoria = await _context.AuditoriasRecepcion
+                    .Include(a => a.UsuarioAuditor)
                     .FirstOrDefaultAsync(a => a.AuditoriaID == auditoriaId);
 
                 if (auditoria == null)
@@ -262,8 +262,8 @@ namespace AuditoriaRecepcion.Services.Implementation
                 var incidencias = await _context.Incidencias
                     .Include(i => i.Auditoria)
                     .Where(i => i.UsuarioAsignadoID == userId &&
-                               (i.EstadoResolucion == "Pendiente" || i.EstadoResolucion == "EnProceso"))
-                    .OrderByDescending(i => i.FechaDeteccion)
+                               (i.EstadoIncidencia == "Pendiente" || i.EstadoIncidencia == "EnProceso"))
+                    .OrderByDescending(i => i.FechaReporte)
                     .Take(10)
                     .ToListAsync();
 
@@ -276,7 +276,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                         Prioridad = incidencia.Prioridad,
                         Titulo = $"Incidencia Pendiente: {incidencia.TipoIncidencia}",
                         Mensaje = incidencia.Descripcion,
-                        FechaAlerta = incidencia.FechaDeteccion,
+                        FechaAlerta = incidencia.FechaReporte,
                         Leida = false,
                         UrlAccion = $"/incidencias/{incidencia.IncidenciaID}"
                     });

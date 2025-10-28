@@ -13,7 +13,7 @@ namespace AuditoriaRecepcion.Repositories.Implementation
 
         public async Task<Producto> GetBySKUAsync(string sku)
         {
-            return await _dbSet.FirstOrDefaultAsync(p => p.SKU == sku);
+            return await _dbSet.FirstOrDefaultAsync(p => p.CodigoInterno == sku);
         }
 
         public async Task<Producto> GetByCodigoBarrasAsync(string codigoBarras)
@@ -25,7 +25,7 @@ namespace AuditoriaRecepcion.Repositories.Implementation
         {
             return await _dbSet
                 .Where(p => p.Categoria == categoria && p.Activo)
-                .OrderBy(p => p.Nombre)
+                .OrderBy(p => p.Descripcion)
                 .ToListAsync();
         }
 
@@ -36,11 +36,11 @@ namespace AuditoriaRecepcion.Repositories.Implementation
 
             return await _dbSet
                 .Where(p =>
-                    p.SKU.Contains(busqueda) ||
-                    p.Nombre.Contains(busqueda) ||
+                    p.CodigoInterno.Contains(busqueda) ||
+                    p.Descripcion.Contains(busqueda) ||
                     p.Descripcion.Contains(busqueda) ||
                     p.CodigoBarras.Contains(busqueda))
-                .OrderBy(p => p.Nombre)
+                .OrderBy(p => p.Descripcion)
                 .ToListAsync();
         }
 
@@ -56,7 +56,7 @@ namespace AuditoriaRecepcion.Repositories.Implementation
 
         public async Task<bool> ExisteSKUAsync(string sku, int? excludeId = null)
         {
-            var query = _dbSet.Where(p => p.SKU == sku);
+            var query = _dbSet.Where(p => p.CodigoInterno == sku);
 
             if (excludeId.HasValue)
                 query = query.Where(p => p.ProductoID != excludeId.Value);

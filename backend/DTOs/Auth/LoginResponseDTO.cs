@@ -1,3 +1,5 @@
+using AuditoriaRecepcion.DTOs.Usuario;
+
 namespace AuditoriaRecepcion.DTOs.Auth
 {
     public class LoginResponseDTO

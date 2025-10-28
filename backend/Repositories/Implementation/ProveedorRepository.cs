@@ -18,9 +18,10 @@ namespace AuditoriaRecepcion.Repositories.Implementation
 
         public async Task<IEnumerable<Proveedor>> GetByProvinciaAsync(string provincia)
         {
+            // Provincia no existe en el modelo actual
             return await _dbSet
-                .Where(p => p.Provincia == provincia && p.Activo)
-                .OrderBy(p => p.RazonSocial)
+                .Where(p => p.Activo)
+                .OrderBy(p => p.NombreProveedor)
                 .ToListAsync();
         }
 
@@ -31,22 +32,18 @@ namespace AuditoriaRecepcion.Repositories.Implementation
 
             return await _dbSet
                 .Where(p =>
-                    p.RazonSocial.Contains(busqueda) ||
-                    p.NombreFantasia.Contains(busqueda) ||
+                    p.NombreProveedor.Contains(busqueda) ||
+                    p.NombreProveedor.Contains(busqueda) ||
                     p.CUIT.Contains(busqueda) ||
                     p.Email.Contains(busqueda))
-                .OrderBy(p => p.RazonSocial)
+                .OrderBy(p => p.NombreProveedor)
                 .ToListAsync();
         }
 
         public async Task<IEnumerable<string>> GetProvinciasAsync()
         {
-            return await _dbSet
-                .Where(p => !string.IsNullOrEmpty(p.Provincia))
-                .Select(p => p.Provincia)
-                .Distinct()
-                .OrderBy(prov => prov)
-                .ToListAsync();
+            // Provincia no existe en el modelo actual
+            return await Task.FromResult(new List<string>());
         }
 
         public async Task<bool> ExisteCuitAsync(string cuit, int? excludeId = null)

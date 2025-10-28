@@ -13,7 +13,7 @@ namespace AuditoriaRecepcion.Repositories.Implementation
 
         public async Task<Usuario> GetByUsernameAsync(string username)
         {
-            return await _dbSet.FirstOrDefaultAsync(u => u.Usuario == username);
+            return await _dbSet.FirstOrDefaultAsync(u => u.NombreUsuario == username);
         }
 
         public async Task<Usuario> GetByEmailAsync(string email)
@@ -31,7 +31,7 @@ namespace AuditoriaRecepcion.Repositories.Implementation
 
         public async Task<bool> ExisteUsernameAsync(string username, int? excludeId = null)
         {
-            var query = _dbSet.Where(u => u.Usuario == username);
+            var query = _dbSet.Where(u => u.NombreUsuario == username);
 
             if (excludeId.HasValue)
                 query = query.Where(u => u.UsuarioID != excludeId.Value);

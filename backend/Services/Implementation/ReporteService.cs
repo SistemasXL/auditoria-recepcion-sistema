@@ -30,9 +30,9 @@ namespace AuditoriaRecepcion.Services.Implementation
         {
             try
             {
-                var auditoria = await _context.Auditorias
+                var auditoria = await _context.AuditoriasRecepcion
                     .Include(a => a.Proveedor)
-                    .Include(a => a.UsuarioCreacion)
+                    .Include(a => a.UsuarioAuditor)
                     .Include(a => a.Detalles)
                         .ThenInclude(d => d.Producto)
                     .Include(a => a.Incidencias)
@@ -62,10 +62,10 @@ namespace AuditoriaRecepcion.Services.Implementation
                                 // Información general
                                 column.Item().Text("Información General").SemiBold().FontSize(14);
                                 column.Item().LineHorizontal(1);
-                                column.Item().Text($"Fecha Recepción: {auditoria.FechaRecepcion:dd/MM/yyyy}");
+                                column.Item().Text($"Fecha Recepción: {auditoria.FechaInicio:dd/MM/yyyy}");
                                 column.Item().Text($"Proveedor: {auditoria.Proveedor.RazonSocial}");
-                                column.Item().Text($"Orden de Compra: {auditoria.NumeroOrdenCompra}");
-                                column.Item().Text($"Estado: {auditoria.Estado}");
+                                column.Item().Text($"Orden de Compra: {auditoria.OrdenCompraID}");
+                                column.Item().Text($"Estado: {auditoria.EstadoAuditoria}");
 
                                 // Detalles de productos (simplificado)
                                 column.Item().PaddingTop(20).Text("Productos Recibidos").SemiBold().FontSize(14);
@@ -109,7 +109,7 @@ namespace AuditoriaRecepcion.Services.Implementation
         {
             try
             {
-                var auditoria = await _context.Auditorias
+                var auditoria = await _context.AuditoriasRecepcion
                     .Include(a => a.Proveedor)
                     .Include(a => a.Detalles)
                         .ThenInclude(d => d.Producto)
@@ -126,13 +126,13 @@ namespace AuditoriaRecepcion.Services.Implementation
                 wsGeneral.Cell(1, 1).Value = "Número Auditoría";
                 wsGeneral.Cell(1, 2).Value = auditoria.NumeroAuditoria;
                 wsGeneral.Cell(2, 1).Value = "Fecha Recepción";
-                wsGeneral.Cell(2, 2).Value = auditoria.FechaRecepcion;
+                wsGeneral.Cell(2, 2).Value = auditoria.FechaInicio;
                 wsGeneral.Cell(3, 1).Value = "Proveedor";
                 wsGeneral.Cell(3, 2).Value = auditoria.Proveedor.RazonSocial;
                 wsGeneral.Cell(4, 1).Value = "Orden de Compra";
-                wsGeneral.Cell(4, 2).Value = auditoria.NumeroOrdenCompra;
+                wsGeneral.Cell(4, 2).Value = auditoria.OrdenCompraID;
                 wsGeneral.Cell(5, 1).Value = "Estado";
-                wsGeneral.Cell(5, 2).Value = auditoria.Estado;
+                wsGeneral.Cell(5, 2).Value = auditoria.EstadoAuditoria;
 
                 // Hoja 2: Productos
                 var wsProductos = workbook.Worksheets.Add("Productos");
@@ -151,7 +151,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                     wsProductos.Cell(row, 3).Value = detalle.CantidadEsperada;
                     wsProductos.Cell(row, 4).Value = detalle.CantidadRecibida;
                     wsProductos.Cell(row, 5).Value = detalle.CantidadEsperada - detalle.CantidadRecibida;
-                    wsProductos.Cell(row, 6).Value = detalle.EstadoProducto;
+                    wsProductos.Cell(row, 6).Value = detalle.EstadoItem;
                     row++;
                 }
 
@@ -170,7 +170,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                         wsIncidencias.Cell(row, 1).Value = incidencia.TipoIncidencia;
                         wsIncidencias.Cell(row, 2).Value = incidencia.Descripcion;
                         wsIncidencias.Cell(row, 3).Value = incidencia.EstadoResolucion;
-                        wsIncidencias.Cell(row, 4).Value = incidencia.FechaDeteccion;
+                        wsIncidencias.Cell(row, 4).Value = incidencia.FechaReporte;
                         row++;
                     }
                 }
@@ -193,18 +193,18 @@ namespace AuditoriaRecepcion.Services.Implementation
         {
             try
             {
-                var auditorias = await _context.Auditorias
+                var auditorias = await _context.AuditoriasRecepcion
                     .Include(a => a.Proveedor)
                     .Include(a => a.Detalles)
                     .Include(a => a.Incidencias)
-                    .Where(a => a.FechaRecepcion >= request.FechaDesde && a.FechaRecepcion <= request.FechaHasta)
+                    .Where(a => a.FechaInicio >= request.FechaDesde && a.FechaInicio <= request.FechaHasta)
                     .ToListAsync();
 
                 if (request.ProveedoresIDs != null && request.ProveedoresIDs.Any())
                     auditorias = auditorias.Where(a => request.ProveedoresIDs.Contains(a.ProveedorID)).ToList();
 
                 if (request.Estados != null && request.Estados.Any())
-                    auditorias = auditorias.Where(a => request.Estados.Contains(a.Estado)).ToList();
+                    auditorias = auditorias.Where(a => request.Estados.Contains(a.EstadoAuditoria)).ToList();
 
                 using var workbook = new XLWorkbook();
                 var ws = workbook.Worksheets.Add("Reporte Consolidado");
@@ -222,10 +222,10 @@ namespace AuditoriaRecepcion.Services.Implementation
                 foreach (var auditoria in auditorias)
                 {
                     ws.Cell(row, 1).Value = auditoria.NumeroAuditoria;
-                    ws.Cell(row, 2).Value = auditoria.FechaRecepcion;
+                    ws.Cell(row, 2).Value = auditoria.FechaInicio;
                     ws.Cell(row, 3).Value = auditoria.Proveedor.RazonSocial;
-                    ws.Cell(row, 4).Value = auditoria.NumeroOrdenCompra;
-                    ws.Cell(row, 5).Value = auditoria.Estado;
+                    ws.Cell(row, 4).Value = auditoria.OrdenCompraID;
+                    ws.Cell(row, 5).Value = auditoria.EstadoAuditoria;
                     ws.Cell(row, 6).Value = auditoria.Detalles.Count;
                     ws.Cell(row, 7).Value = auditoria.Incidencias.Count;
                     row++;

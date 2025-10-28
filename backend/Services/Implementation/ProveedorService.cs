@@ -33,8 +33,8 @@ namespace AuditoriaRecepcion.Services.Implementation
                 if (!string.IsNullOrEmpty(filtro.Busqueda))
                 {
                     query = query.Where(p =>
-                        p.RazonSocial.Contains(filtro.Busqueda) ||
-                        p.NombreFantasia.Contains(filtro.Busqueda) ||
+                        p.NombreProveedor.Contains(filtro.Busqueda) ||
+                        p.NombreProveedor.Contains(filtro.Busqueda) ||
                         p.CUIT.Contains(filtro.Busqueda) ||
                         p.Email.Contains(filtro.Busqueda));
                 }
@@ -42,15 +42,16 @@ namespace AuditoriaRecepcion.Services.Implementation
                 if (filtro.Activo.HasValue)
                     query = query.Where(p => p.Activo == filtro.Activo.Value);
 
-                if (!string.IsNullOrEmpty(filtro.Provincia))
-                    query = query.Where(p => p.Provincia == filtro.Provincia);
+                // Provincia no existe en el modelo actual
+                // if (!string.IsNullOrEmpty(filtro.Provincia))
+                //     query = query.Where(p => p.Provincia == filtro.Provincia);
 
                 // Contar total
                 var totalItems = await query.CountAsync();
 
                 // Ordenar y paginar
                 var items = await query
-                    .OrderBy(p => p.RazonSocial)
+                    .OrderBy(p => p.NombreProveedor)
                     .Skip((filtro.PageNumber - 1) * filtro.PageSize)
                     .Take(filtro.PageSize)
                     .Select(p => MapToProveedorDTO(p))
@@ -114,16 +115,12 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 var proveedor = new Proveedor
                 {
-                    RazonSocial = dto.RazonSocial,
-                    NombreFantasia = dto.NombreFantasia,
+                    NombreProveedor = dto.NombreProveedor,
                     CUIT = dto.CUIT,
+                    Contacto = dto.Contacto,
                     Email = dto.Email,
                     Telefono = dto.Telefono,
                     Direccion = dto.Direccion,
-                    Ciudad = dto.Ciudad,
-                    Provincia = dto.Provincia,
-                    CodigoPostal = dto.CodigoPostal,
-                    PersonaContacto = dto.PersonaContacto,
                     Activo = true,
                     FechaCreacion = DateTime.Now
                 };
@@ -157,15 +154,13 @@ namespace AuditoriaRecepcion.Services.Implementation
                 if (proveedor == null)
                     return null;
 
-                proveedor.RazonSocial = dto.RazonSocial;
-                proveedor.NombreFantasia = dto.NombreFantasia;
+                proveedor.NombreProveedor = dto.NombreProveedor;
+                proveedor.NombreProveedor = dto.NombreProveedor;
+                proveedor.Contacto = dto.Contacto;
                 proveedor.Email = dto.Email;
                 proveedor.Telefono = dto.Telefono;
                 proveedor.Direccion = dto.Direccion;
-                proveedor.Ciudad = dto.Ciudad;
-                proveedor.Provincia = dto.Provincia;
-                proveedor.CodigoPostal = dto.CodigoPostal;
-                proveedor.PersonaContacto = dto.PersonaContacto;
+                proveedor.FechaModificacion = DateTime.Now;
 
                 await _context.SaveChangesAsync();
 
@@ -225,16 +220,16 @@ namespace AuditoriaRecepcion.Services.Implementation
                 if (proveedor == null)
                     throw new InvalidOperationException("Proveedor no encontrado");
 
-                var query = _context.Auditorias
+                var query = _context.AuditoriasRecepcion
                     .Include(a => a.Incidencias)
                     .Where(a => a.ProveedorID == id)
                     .AsQueryable();
 
                 if (fechaDesde.HasValue)
-                    query = query.Where(a => a.FechaRecepcion >= fechaDesde.Value);
+                    query = query.Where(a => a.FechaInicio >= fechaDesde.Value);
 
                 if (fechaHasta.HasValue)
-                    query = query.Where(a => a.FechaRecepcion <= fechaHasta.Value);
+                    query = query.Where(a => a.FechaInicio <= fechaHasta.Value);
 
                 var auditorias = await query.ToListAsync();
 
@@ -244,11 +239,11 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 var incidenciasPendientes = auditorias
                     .SelectMany(a => a.Incidencias)
-                    .Count(i => i.EstadoResolucion == "Pendiente" || i.EstadoResolucion == "EnProceso");
+                    .Count(i => i.EstadoIncidencia == "Pendiente" || i.EstadoIncidencia == "EnProceso");
 
                 var incidenciasResueltas = auditorias
                     .SelectMany(a => a.Incidencias)
-                    .Count(i => i.EstadoResolucion == "Resuelta");
+                    .Count(i => i.EstadoIncidencia == "Resuelta");
 
                 var incidenciasConTiempo = auditorias
                     .SelectMany(a => a.Incidencias)
@@ -257,7 +252,7 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 var tiempoPromedioResolucion = incidenciasConTiempo.Any()
                     ? (decimal)incidenciasConTiempo
-                        .Average(i => (i.FechaResolucion!.Value - i.FechaDeteccion).TotalHours)
+                        .Average(i => (i.FechaResolucion!.Value - i.FechaReporte).TotalHours)
                     : 0;
 
                 var incidenciasPorTipo = auditorias
@@ -268,14 +263,14 @@ namespace AuditoriaRecepcion.Services.Implementation
                 return new ProveedorEstadisticasDTO
                 {
                     ProveedorID = id,
-                    RazonSocial = proveedor.RazonSocial,
+                    RazonSocial = proveedor.NombreProveedor,
                     TotalAuditorias = totalAuditorias,
                     TotalIncidencias = totalIncidencias,
                     PorcentajeIncidencias = porcentajeIncidencias,
                     IncidenciasPendientes = incidenciasPendientes,
                     IncidenciasResueltas = incidenciasResueltas,
                     TiempoPromedioResolucion = tiempoPromedioResolucion,
-                    UltimaRecepcion = auditorias.Any() ? auditorias.Max(a => a.FechaRecepcion) : null,
+                    UltimaRecepcion = auditorias.Any() ? auditorias.Max(a => a.FechaInicio) : null,
                     IncidenciasPorTipo = incidenciasPorTipo
                 };
             }
@@ -314,17 +309,25 @@ namespace AuditoriaRecepcion.Services.Implementation
         // Métodos privados auxiliares
         private async Task RegistrarAuditoriaAccionAsync(int userId, string accion, string tabla, int registroId)
         {
-            var auditoria = new AuditoriaAccion
+            try
             {
-                UsuarioID = userId,
-                TipoAccion = accion,
-                TablaAfectada = tabla,
-                RegistroID = registroId,
-                FechaHora = DateTime.Now
-            };
+                var log = new AuditoriaLog
+                {
+                    UsuarioID = userId,
+                    TipoAccion = accion,
+                    TablaAfectada = tabla,
+                    RegistroID = registroId,
+                    FechaHora = DateTime.Now
+                };
 
-            _context.AuditoriasAcciones.Add(auditoria);
-            await _context.SaveChangesAsync();
+                _context.AuditoriaLogs.Add(log);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al registrar auditoría de acción");
+                // No lanzar excepción para no afectar el flujo principal
+            }
         }
 
         private ProveedorDTO MapToProveedorDTO(Proveedor proveedor)
@@ -332,16 +335,13 @@ namespace AuditoriaRecepcion.Services.Implementation
             return new ProveedorDTO
             {
                 ProveedorID = proveedor.ProveedorID,
-                RazonSocial = proveedor.RazonSocial,
-                NombreFantasia = proveedor.NombreFantasia,
+                RazonSocial = proveedor.NombreProveedor,
+                NombreFantasia = proveedor.NombreProveedor,
                 CUIT = proveedor.CUIT,
+                Contacto = proveedor.Contacto,
                 Email = proveedor.Email,
                 Telefono = proveedor.Telefono,
                 Direccion = proveedor.Direccion,
-                Ciudad = proveedor.Ciudad,
-                Provincia = proveedor.Provincia,
-                CodigoPostal = proveedor.CodigoPostal,
-                PersonaContacto = proveedor.PersonaContacto,
                 Activo = proveedor.Activo,
                 FechaCreacion = proveedor.FechaCreacion
             };

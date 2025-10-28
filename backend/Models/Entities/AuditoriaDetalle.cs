@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace AuditoriaRecepcionAPI.Models.Entities
+namespace AuditoriaRecepcion.Models
 {
     [Table("AuditoriaDetalle")]
     public class AuditoriaDetalle

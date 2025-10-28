@@ -5,29 +5,28 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AuditoriaRecepcion.Repositories.Implementation
 {
-    public class AuditoriaRepository : BaseRepository<Auditoria>, IAuditoriaRepository
+    public class AuditoriaRepository : BaseRepository<Models.AuditoriaRecepcion>, IAuditoriaRepository
     {
         public AuditoriaRepository(AuditoriaRecepcionContext context) : base(context)
         {
         }
 
-        public async Task<Auditoria> GetAuditoriaCompletaAsync(int id)
+        public async Task<Models.AuditoriaRecepcion> GetAuditoriaCompletaAsync(int id)
         {
             return await _dbSet
                 .Include(a => a.Proveedor)
-                .Include(a => a.UsuarioCreacion)
-                .Include(a => a.UsuarioModificacion)
+                .Include(a => a.UsuarioAuditor)
                 .Include(a => a.Detalles)
                     .ThenInclude(d => d.Producto)
                 .Include(a => a.Incidencias)
-                    .ThenInclude(i => i.UsuarioReporto)
+                    .ThenInclude(i => i.UsuarioReporta)
                 .Include(a => a.Incidencias)
-                    .ThenInclude(i => i.UsuarioAsignado)
+                    .ThenInclude(i => i.UsuarioResponsable)
                 .Include(a => a.Evidencias)
                 .FirstOrDefaultAsync(a => a.AuditoriaID == id);
         }
 
-        public async Task<IEnumerable<Auditoria>> GetAuditoriasByProveedorAsync(
+        public async Task<IEnumerable<Models.AuditoriaRecepcion>> GetAuditoriasByProveedorAsync(
             int proveedorId, 
             DateTime? fechaDesde, 
             DateTime? fechaHasta)
@@ -37,35 +36,35 @@ namespace AuditoriaRecepcion.Repositories.Implementation
                 .Where(a => a.ProveedorID == proveedorId);
 
             if (fechaDesde.HasValue)
-                query = query.Where(a => a.FechaRecepcion >= fechaDesde.Value);
+                query = query.Where(a => a.FechaInicio >= fechaDesde.Value);
 
             if (fechaHasta.HasValue)
-                query = query.Where(a => a.FechaRecepcion <= fechaHasta.Value);
+                query = query.Where(a => a.FechaInicio <= fechaHasta.Value);
 
             return await query
-                .OrderByDescending(a => a.FechaRecepcion)
+                .OrderByDescending(a => a.FechaInicio)
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<Auditoria>> GetAuditoriasAbiertasAsync()
+        public async Task<IEnumerable<Models.AuditoriaRecepcion>> GetAuditoriasAbiertasAsync()
         {
             return await _dbSet
                 .Include(a => a.Proveedor)
-                .Include(a => a.UsuarioCreacion)
-                .Where(a => a.Estado == "Abierta")
-                .OrderByDescending(a => a.FechaCreacion)
+                .Include(a => a.UsuarioAuditor)
+                .Where(a => a.EstadoAuditoria == "En Proceso")
+                .OrderByDescending(a => a.FechaInicio)
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<Auditoria>> GetAuditoriasVencidasAsync(int diasVencimiento = 7)
+        public async Task<IEnumerable<Models.AuditoriaRecepcion>> GetAuditoriasVencidasAsync(int diasVencimiento = 7)
         {
             var fechaLimite = DateTime.Now.AddDays(-diasVencimiento);
 
             return await _dbSet
                 .Include(a => a.Proveedor)
-                .Include(a => a.UsuarioCreacion)
-                .Where(a => a.Estado == "Abierta" && a.FechaCreacion <= fechaLimite)
-                .OrderBy(a => a.FechaCreacion)
+                .Include(a => a.UsuarioAuditor)
+                .Where(a => a.EstadoAuditoria == "En Proceso" && a.FechaInicio <= fechaLimite)
+                .OrderBy(a => a.FechaInicio)
                 .ToListAsync();
         }
 

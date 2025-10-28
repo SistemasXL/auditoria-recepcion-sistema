@@ -1,13 +1,17 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace AuditoriaRecepcionAPI.Models.Entities
+namespace AuditoriaRecepcion.Models
 {
     [Table("Usuarios")]
     public class Usuario
     {
         [Key]
         public int UsuarioID { get; set; }
+
+        [Required]
+        [MaxLength(50)]
+        public string NombreUsuario { get; set; }
 
         [Required]
         [MaxLength(100)]
@@ -20,14 +24,19 @@ namespace AuditoriaRecepcionAPI.Models.Entities
 
         [Required]
         [MaxLength(255)]
-        public string PasswordHash { get; set; }
+        public string ContrasenaHash { get; set; }
 
         [Required]
         public int RolID { get; set; }
 
+        [MaxLength(20)]
+        public string Rol { get; set; }
+
         public bool Activo { get; set; } = true;
 
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
+
+        public DateTime? FechaModificacion { get; set; }
 
         public DateTime? UltimoAcceso { get; set; }
 
@@ -35,7 +44,11 @@ namespace AuditoriaRecepcionAPI.Models.Entities
 
         public DateTime? FechaBloqueo { get; set; }
 
+        public string RefreshToken { get; set; }
+
+        public DateTime? RefreshTokenExpiry { get; set; }
+
         [ForeignKey("RolID")]
-        public virtual Rol Rol { get; set; }
+        public virtual Rol RolNavigation { get; set; }
     }
 }

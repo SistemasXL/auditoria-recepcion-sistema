@@ -29,9 +29,8 @@ namespace AuditoriaRecepcion.Services.Implementation
             {
                 var query = _context.Incidencias
                     .Include(i => i.Auditoria)
-                    .Include(i => i.Producto)
-                    .Include(i => i.UsuarioAsignado)
-                    .Include(i => i.Evidencias)
+                    .Include(i => i.UsuarioResponsable)
+                    .Include(i => i.UsuarioReporta)
                     .AsNoTracking()
                     .AsQueryable();
 
@@ -39,17 +38,17 @@ namespace AuditoriaRecepcion.Services.Implementation
                 if (!string.IsNullOrEmpty(filtro.TipoIncidencia))
                     query = query.Where(i => i.TipoIncidencia == filtro.TipoIncidencia);
 
-                if (!string.IsNullOrEmpty(filtro.EstadoResolucion))
-                    query = query.Where(i => i.EstadoResolucion == filtro.EstadoResolucion);
+                if (!string.IsNullOrEmpty(filtro.EstadoIncidencia))
+                    query = query.Where(i => i.EstadoIncidencia == filtro.EstadoIncidencia);
 
-                if (!string.IsNullOrEmpty(filtro.Prioridad))
-                    query = query.Where(i => i.Prioridad == filtro.Prioridad);
+                if (!string.IsNullOrEmpty(filtro.Severidad))
+                    query = query.Where(i => i.Severidad == filtro.Severidad);
 
                 if (filtro.FechaDesde.HasValue)
-                    query = query.Where(i => i.FechaDeteccion >= filtro.FechaDesde.Value);
+                    query = query.Where(i => i.FechaReporte >= filtro.FechaDesde.Value);
 
                 if (filtro.FechaHasta.HasValue)
-                    query = query.Where(i => i.FechaDeteccion <= filtro.FechaHasta.Value);
+                    query = query.Where(i => i.FechaReporte <= filtro.FechaHasta.Value);
 
                 if (filtro.AuditoriaId.HasValue)
                     query = query.Where(i => i.AuditoriaID == filtro.AuditoriaId.Value);
@@ -57,18 +56,19 @@ namespace AuditoriaRecepcion.Services.Implementation
                 if (filtro.ProveedorId.HasValue)
                     query = query.Where(i => i.Auditoria.ProveedorID == filtro.ProveedorId.Value);
 
-                if (filtro.ProductoId.HasValue)
-                    query = query.Where(i => i.ProductoID == filtro.ProductoId.Value);
+                // ProductoID no existe en el modelo Incidencia
+                // if (filtro.ProductoId.HasValue)
+                //     query = query.Where(i => i.ProductoID == filtro.ProductoId.Value);
 
-                if (filtro.UsuarioAsignadoId.HasValue)
-                    query = query.Where(i => i.UsuarioAsignadoID == filtro.UsuarioAsignadoId.Value);
+                if (filtro.UsuarioResponsableID.HasValue)
+                    query = query.Where(i => i.UsuarioResponsableID == filtro.UsuarioResponsableID.Value);
 
                 // Contar total
                 var totalItems = await query.CountAsync();
 
                 // Ordenar y paginar
                 var items = await query
-                    .OrderByDescending(i => i.FechaDeteccion)
+                    .OrderByDescending(i => i.FechaReporte)
                     .Skip((filtro.PageNumber - 1) * filtro.PageSize)
                     .Take(filtro.PageSize)
                     .Select(i => new IncidenciaDTO
@@ -76,18 +76,17 @@ namespace AuditoriaRecepcion.Services.Implementation
                         IncidenciaID = i.IncidenciaID,
                         AuditoriaID = i.AuditoriaID,
                         NumeroAuditoria = i.Auditoria.NumeroAuditoria,
-                        DetalleAuditoriaID = i.DetalleAuditoriaID,
-                        ProductoID = i.ProductoID,
-                        ProductoNombre = i.Producto != null ? i.Producto.Nombre : null,
+                        // DetalleAuditoriaID y ProductoID no existen en el modelo Incidencia
                         TipoIncidencia = i.TipoIncidencia,
                         Descripcion = i.Descripcion,
-                        EstadoResolucion = i.EstadoResolucion,
-                        UsuarioAsignadoID = i.UsuarioAsignadoID,
-                        UsuarioAsignadoNombre = i.UsuarioAsignado != null ? i.UsuarioAsignado.NombreCompleto : null,
-                        FechaDeteccion = i.FechaDeteccion,
+                        EstadoResolucion = i.EstadoIncidencia,
+                        UsuarioAsignadoID = i.UsuarioResponsableID,
+                        UsuarioAsignadoNombre = i.UsuarioResponsable != null ? i.UsuarioResponsable.NombreCompleto : null,
+                        FechaDeteccion = i.FechaReporte,
                         FechaResolucion = i.FechaResolucion,
-                        CantidadEvidencias = i.Evidencias.Count,
-                        Prioridad = i.Prioridad
+                        // Evidencias no es una navigation property en Incidencia
+                        CantidadEvidencias = 0,
+                        Prioridad = i.Severidad
                     })
                     .ToListAsync();
 
@@ -107,11 +106,8 @@ namespace AuditoriaRecepcion.Services.Implementation
                 var incidencia = await _context.Incidencias
                     .Include(i => i.Auditoria)
                         .ThenInclude(a => a.Proveedor)
-                    .Include(i => i.DetalleAuditoria)
-                    .Include(i => i.Producto)
-                    .Include(i => i.UsuarioReporto)
-                    .Include(i => i.UsuarioAsignado)
-                    .Include(i => i.Evidencias)
+                    .Include(i => i.UsuarioReporta)
+                    .Include(i => i.UsuarioResponsable)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(i => i.IncidenciaID == id);
 
@@ -138,25 +134,23 @@ namespace AuditoriaRecepcion.Services.Implementation
             try
             {
                 // Validar auditoría
-                var auditoria = await _context.Auditorias.FindAsync(dto.AuditoriaID);
+                var auditoria = await _context.AuditoriasRecepcion.FindAsync(dto.AuditoriaID);
                 if (auditoria == null)
                     throw new InvalidOperationException("Auditoría no encontrada");
 
-                if (auditoria.Estado == "Cerrada")
+                if (auditoria.EstadoAuditoria == "Cerrada")
                     throw new InvalidOperationException("No se pueden agregar incidencias a una auditoría cerrada");
 
                 var incidencia = new Incidencia
                 {
                     AuditoriaID = dto.AuditoriaID,
-                    DetalleAuditoriaID = dto.DetalleAuditoriaID,
-                    ProductoID = dto.ProductoID,
                     TipoIncidencia = dto.TipoIncidencia,
                     Descripcion = dto.Descripcion,
-                    EstadoResolucion = "Pendiente",
-                    Prioridad = dto.Prioridad,
-                    UsuarioReportoID = userId,
-                    UsuarioAsignadoID = dto.UsuarioAsignadoID,
-                    FechaDeteccion = DateTime.Now
+                    EstadoIncidencia = "Abierta",
+                    Severidad = dto.Severidad,
+                    UsuarioReportaID = userId,
+                    UsuarioResponsableID = dto.UsuarioResponsableID,
+                    FechaReporte = DateTime.Now
                 };
 
                 _context.Incidencias.Add(incidencia);
@@ -193,9 +187,9 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 incidencia.TipoIncidencia = dto.TipoIncidencia;
                 incidencia.Descripcion = dto.Descripcion;
-                incidencia.AccionCorrectiva = dto.AccionCorrectiva;
-                incidencia.Prioridad = dto.Prioridad;
-                incidencia.UsuarioAsignadoID = dto.UsuarioAsignadoID;
+                incidencia.ComentariosResolucion = dto.ComentariosResolucion;
+                incidencia.Severidad = dto.Severidad;
+                incidencia.UsuarioResponsableID = dto.UsuarioResponsableID;
 
                 await _context.SaveChangesAsync();
 
@@ -225,8 +219,8 @@ namespace AuditoriaRecepcion.Services.Implementation
                 if (incidencia == null)
                     throw new InvalidOperationException("Incidencia no encontrada");
 
-                var estadoAnterior = incidencia.EstadoResolucion;
-                incidencia.EstadoResolucion = estadoResolucion;
+                var estadoAnterior = incidencia.EstadoIncidencia;
+                incidencia.EstadoIncidencia = estadoResolucion;
 
                 if (estadoResolucion == "Resuelta" || estadoResolucion == "Rechazada")
                 {
@@ -235,7 +229,7 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 if (!string.IsNullOrEmpty(observaciones))
                 {
-                    incidencia.AccionCorrectiva = observaciones;
+                    incidencia.ComentariosResolucion = observaciones;
                 }
 
                 await _context.SaveChangesAsync();
@@ -266,10 +260,10 @@ namespace AuditoriaRecepcion.Services.Implementation
                 var incidencias = await _context.Incidencias
                     .Include(i => i.Auditoria)
                     .Include(i => i.Producto)
-                    .Where(i => i.UsuarioAsignadoID == userId &&
-                               (i.EstadoResolucion == "Pendiente" || i.EstadoResolucion == "EnProceso"))
-                    .OrderByDescending(i => i.Prioridad)
-                    .ThenBy(i => i.FechaDeteccion)
+                    .Where(i => i.UsuarioResponsableID == userId &&
+                               (i.EstadoIncidencia == "Pendiente" || i.EstadoIncidencia == "EnProceso"))
+                    .OrderByDescending(i => i.Severidad)
+                    .ThenBy(i => i.FechaReporte)
                     .Select(i => new IncidenciaDTO
                     {
                         IncidenciaID = i.IncidenciaID,
@@ -278,9 +272,9 @@ namespace AuditoriaRecepcion.Services.Implementation
                         ProductoNombre = i.Producto != null ? i.Producto.Nombre : null,
                         TipoIncidencia = i.TipoIncidencia,
                         Descripcion = i.Descripcion,
-                        EstadoResolucion = i.EstadoResolucion,
-                        FechaDeteccion = i.FechaDeteccion,
-                        Prioridad = i.Prioridad
+                        EstadoResolucion = i.EstadoIncidencia,
+                        FechaDeteccion = i.FechaReporte,
+                        Prioridad = i.Severidad
                     })
                     .ToListAsync();
 
@@ -300,18 +294,18 @@ namespace AuditoriaRecepcion.Services.Implementation
                 var query = _context.Incidencias.AsQueryable();
 
                 if (fechaDesde.HasValue)
-                    query = query.Where(i => i.FechaDeteccion >= fechaDesde.Value);
+                    query = query.Where(i => i.FechaReporte >= fechaDesde.Value);
 
                 if (fechaHasta.HasValue)
-                    query = query.Where(i => i.FechaDeteccion <= fechaHasta.Value);
+                    query = query.Where(i => i.FechaReporte <= fechaHasta.Value);
 
                 var incidencias = await query.ToListAsync();
 
                 var totalIncidencias = incidencias.Count;
-                var pendientes = incidencias.Count(i => i.EstadoResolucion == "Pendiente");
-                var enProceso = incidencias.Count(i => i.EstadoResolucion == "EnProceso");
-                var resueltas = incidencias.Count(i => i.EstadoResolucion == "Resuelta");
-                var rechazadas = incidencias.Count(i => i.EstadoResolucion == "Rechazada");
+                var pendientes = incidencias.Count(i => i.EstadoIncidencia == "Pendiente");
+                var enProceso = incidencias.Count(i => i.EstadoIncidencia == "EnProceso");
+                var resueltas = incidencias.Count(i => i.EstadoIncidencia == "Resuelta");
+                var rechazadas = incidencias.Count(i => i.EstadoIncidencia == "Rechazada");
 
                 var porcentajeResolucion = totalIncidencias > 0
                     ? (decimal)resueltas / totalIncidencias * 100
@@ -323,7 +317,7 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 var tiempoPromedioResolucion = incidenciasConTiempo.Any()
                     ? (decimal)incidenciasConTiempo
-                        .Average(i => (i.FechaResolucion!.Value - i.FechaDeteccion).TotalHours)
+                        .Average(i => (i.FechaResolucion!.Value - i.FechaReporte).TotalHours)
                     : 0;
 
                 var incidenciasPorTipo = incidencias
@@ -331,7 +325,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                     .ToDictionary(g => g.Key, g => g.Count());
 
                 var incidenciasPorPrioridad = incidencias
-                    .GroupBy(i => i.Prioridad)
+                    .GroupBy(i => i.Severidad)
                     .ToDictionary(g => g.Key, g => g.Count());
 
                 return new ResumenIncidenciasDTO
@@ -363,11 +357,11 @@ namespace AuditoriaRecepcion.Services.Implementation
                 if (incidencia == null)
                     throw new InvalidOperationException("Incidencia no encontrada");
 
-                incidencia.UsuarioAsignadoID = usuarioAsignadoId;
+                incidencia.UsuarioResponsableID = usuarioAsignadoId;
 
-                if (incidencia.EstadoResolucion == "Pendiente")
+                if (incidencia.EstadoIncidencia == "Pendiente")
                 {
-                    incidencia.EstadoResolucion = "EnProceso";
+                    incidencia.EstadoIncidencia = "EnProceso";
                 }
 
                 await _context.SaveChangesAsync();
@@ -412,7 +406,7 @@ namespace AuditoriaRecepcion.Services.Implementation
             var incidencia = await _context.Incidencias
                 .Include(i => i.Auditoria)
                 .Include(i => i.Producto)
-                .Include(i => i.UsuarioAsignado)
+                .Include(i => i.UsuarioResponsable)
                 .Include(i => i.Evidencias)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(i => i.IncidenciaID == incidenciaId);
@@ -430,13 +424,13 @@ namespace AuditoriaRecepcion.Services.Implementation
                 ProductoNombre = incidencia.Producto?.Nombre,
                 TipoIncidencia = incidencia.TipoIncidencia,
                 Descripcion = incidencia.Descripcion,
-                EstadoResolucion = incidencia.EstadoResolucion,
-                UsuarioAsignadoID = incidencia.UsuarioAsignadoID,
-                UsuarioAsignadoNombre = incidencia.UsuarioAsignado?.NombreCompleto,
-                FechaDeteccion = incidencia.FechaDeteccion,
+                EstadoResolucion = incidencia.EstadoIncidencia,
+                UsuarioAsignadoID = incidencia.UsuarioResponsableID,
+                UsuarioAsignadoNombre = incidencia.UsuarioResponsable?.NombreCompleto,
+                FechaDeteccion = incidencia.FechaReporte,
                 FechaResolucion = incidencia.FechaResolucion,
                 CantidadEvidencias = incidencia.Evidencias.Count,
-                Prioridad = incidencia.Prioridad
+                Prioridad = incidencia.Severidad
             };
         }
     }

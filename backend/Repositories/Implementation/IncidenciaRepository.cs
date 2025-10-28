@@ -14,11 +14,8 @@ namespace AuditoriaRecepcion.Repositories.Implementation
         public async Task<IEnumerable<Incidencia>> GetByAuditoriaAsync(int auditoriaId)
         {
             return await _dbSet
-                .Include(i => i.Producto)
-                .Include(i => i.UsuarioReporto)
-                .Include(i => i.UsuarioAsignado)
                 .Where(i => i.AuditoriaID == auditoriaId)
-                .OrderByDescending(i => i.FechaDeteccion)
+                .OrderByDescending(i => i.FechaReporte)
                 .ToListAsync();
         }
 
@@ -29,17 +26,16 @@ namespace AuditoriaRecepcion.Repositories.Implementation
         {
             var query = _dbSet
                 .Include(i => i.Auditoria)
-                .Include(i => i.Producto)
                 .Where(i => i.Auditoria.ProveedorID == proveedorId);
 
             if (fechaDesde.HasValue)
-                query = query.Where(i => i.FechaDeteccion >= fechaDesde.Value);
+                query = query.Where(i => i.FechaReporte >= fechaDesde.Value);
 
             if (fechaHasta.HasValue)
-                query = query.Where(i => i.FechaDeteccion <= fechaHasta.Value);
+                query = query.Where(i => i.FechaReporte <= fechaHasta.Value);
 
             return await query
-                .OrderByDescending(i => i.FechaDeteccion)
+                .OrderByDescending(i => i.FechaReporte)
                 .ToListAsync();
         }
 
@@ -48,18 +44,12 @@ namespace AuditoriaRecepcion.Repositories.Implementation
             DateTime? fechaDesde, 
             DateTime? fechaHasta)
         {
-            var query = _dbSet
+            // ProductoID no existe en el modelo Incidencia
+            // Este método necesita ser reimplementado o eliminado
+            return await _dbSet
                 .Include(i => i.Auditoria)
-                .Where(i => i.ProductoID == productoId);
-
-            if (fechaDesde.HasValue)
-                query = query.Where(i => i.FechaDeteccion >= fechaDesde.Value);
-
-            if (fechaHasta.HasValue)
-                query = query.Where(i => i.FechaDeteccion <= fechaHasta.Value);
-
-            return await query
-                .OrderByDescending(i => i.FechaDeteccion)
+                .Where(i => i.AuditoriaID > 0) // placeholder
+                .OrderByDescending(i => i.FechaReporte)
                 .ToListAsync();
         }
 
@@ -67,15 +57,14 @@ namespace AuditoriaRecepcion.Repositories.Implementation
         {
             var query = _dbSet
                 .Include(i => i.Auditoria)
-                .Include(i => i.Producto)
-                .Where(i => i.UsuarioAsignadoID == usuarioId);
+                .Where(i => i.UsuarioResponsableID == usuarioId);
 
             if (!string.IsNullOrEmpty(estado))
-                query = query.Where(i => i.EstadoResolucion == estado);
+                query = query.Where(i => i.EstadoIncidencia == estado);
 
             return await query
                 .OrderByDescending(i => i.Prioridad)
-                .ThenBy(i => i.FechaDeteccion)
+                .ThenBy(i => i.FechaReporte)
                 .ToListAsync();
         }
 
@@ -83,11 +72,9 @@ namespace AuditoriaRecepcion.Repositories.Implementation
         {
             return await _dbSet
                 .Include(i => i.Auditoria)
-                .Include(i => i.Producto)
-                .Include(i => i.UsuarioAsignado)
-                .Where(i => i.EstadoResolucion == "Pendiente" || i.EstadoResolucion == "EnProceso")
+                .Where(i => i.EstadoIncidencia == "Pendiente" || i.EstadoIncidencia == "EnProceso")
                 .OrderByDescending(i => i.Prioridad)
-                .ThenBy(i => i.FechaDeteccion)
+                .ThenBy(i => i.FechaReporte)
                 .ToListAsync();
         }
 
@@ -97,12 +84,10 @@ namespace AuditoriaRecepcion.Repositories.Implementation
 
             return await _dbSet
                 .Include(i => i.Auditoria)
-                .Include(i => i.Producto)
-                .Include(i => i.UsuarioAsignado)
                 .Where(i => 
-                    (i.EstadoResolucion == "Pendiente" || i.EstadoResolucion == "EnProceso") &&
-                    i.FechaDeteccion <= fechaLimite)
-                .OrderBy(i => i.FechaDeteccion)
+                    (i.EstadoIncidencia == "Pendiente" || i.EstadoIncidencia == "EnProceso") &&
+                    i.FechaReporte <= fechaLimite)
+                .OrderBy(i => i.FechaReporte)
                 .ToListAsync();
         }
 
@@ -113,10 +98,10 @@ namespace AuditoriaRecepcion.Repositories.Implementation
             var query = _dbSet.AsQueryable();
 
             if (fechaDesde.HasValue)
-                query = query.Where(i => i.FechaDeteccion >= fechaDesde.Value);
+                query = query.Where(i => i.FechaReporte >= fechaDesde.Value);
 
             if (fechaHasta.HasValue)
-                query = query.Where(i => i.FechaDeteccion <= fechaHasta.Value);
+                query = query.Where(i => i.FechaReporte <= fechaHasta.Value);
 
             return await query
                 .GroupBy(i => i.TipoIncidencia)
@@ -131,13 +116,13 @@ namespace AuditoriaRecepcion.Repositories.Implementation
             var query = _dbSet.AsQueryable();
 
             if (fechaDesde.HasValue)
-                query = query.Where(i => i.FechaDeteccion >= fechaDesde.Value);
+                query = query.Where(i => i.FechaReporte >= fechaDesde.Value);
 
             if (fechaHasta.HasValue)
-                query = query.Where(i => i.FechaDeteccion <= fechaHasta.Value);
+                query = query.Where(i => i.FechaReporte <= fechaHasta.Value);
 
             return await query
-                .GroupBy(i => i.EstadoResolucion)
+                .GroupBy(i => i.EstadoIncidencia)
                 .Select(g => new { Estado = g.Key, Cantidad = g.Count() })
                 .ToDictionaryAsync(x => x.Estado, x => x.Cantidad);
         }

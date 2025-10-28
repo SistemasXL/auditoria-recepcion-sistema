@@ -35,8 +35,8 @@ namespace AuditoriaRecepcion.Services.Implementation
                 if (!string.IsNullOrEmpty(filtro.Busqueda))
                 {
                     query = query.Where(p =>
-                        p.SKU.Contains(filtro.Busqueda) ||
-                        p.Nombre.Contains(filtro.Busqueda) ||
+                        p.CodigoInterno.Contains(filtro.Busqueda) ||
+                        p.Descripcion.Contains(filtro.Busqueda) ||
                         p.CodigoBarras.Contains(filtro.Busqueda) ||
                         p.Descripcion.Contains(filtro.Busqueda));
                 }
@@ -52,7 +52,7 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 // Ordenar y paginar
                 var items = await query
-                    .OrderBy(p => p.Nombre)
+                    .OrderBy(p => p.Descripcion)
                     .Skip((filtro.PageNumber - 1) * filtro.PageSize)
                     .Take(filtro.PageSize)
                     .Select(p => MapToProductoDTO(p))
@@ -107,7 +107,7 @@ namespace AuditoriaRecepcion.Services.Implementation
             {
                 var producto = await _context.Productos
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.SKU == sku && p.Activo);
+                    .FirstOrDefaultAsync(p => p.CodigoInterno == sku && p.Activo);
 
                 return producto != null ? MapToProductoDTO(producto) : null;
             }
@@ -124,7 +124,7 @@ namespace AuditoriaRecepcion.Services.Implementation
             try
             {
                 // Validar SKU único
-                if (await _context.Productos.AnyAsync(p => p.SKU == dto.SKU))
+                if (await _context.Productos.AnyAsync(p => p.CodigoInterno == dto.SKU))
                     throw new InvalidOperationException($"Ya existe un producto con el SKU: {dto.SKU}");
 
                 // Validar código de barras único si se proporciona
@@ -134,13 +134,11 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 var producto = new Producto
                 {
-                    SKU = dto.SKU,
-                    Nombre = dto.Nombre,
-                    Descripcion = dto.Descripcion,
+                    CodigoInterno = dto.SKU,
+                    Descripcion = dto.Nombre,
                     CodigoBarras = dto.CodigoBarras,
                     Categoria = dto.Categoria,
                     UnidadMedida = dto.UnidadMedida,
-                    PesoUnitario = dto.PesoUnitario,
                     Activo = true,
                     FechaCreacion = DateTime.Now
                 };
@@ -153,7 +151,7 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 await transaction.CommitAsync();
 
-                _logger.LogInformation("Producto creado: {SKU} por usuario {UserId}", dto.SKU, userId);
+                _logger.LogInformation("Producto creado: {SKU} por usuario {UserId}", dto.CodigoInterno, userId);
 
                 return MapToProductoDTO(producto);
             }
@@ -180,12 +178,12 @@ namespace AuditoriaRecepcion.Services.Implementation
                     await _context.Productos.AnyAsync(p => p.CodigoBarras == dto.CodigoBarras && p.ProductoID != id))
                     throw new InvalidOperationException($"Ya existe un producto con el código de barras: {dto.CodigoBarras}");
 
-                producto.Nombre = dto.Nombre;
                 producto.Descripcion = dto.Descripcion;
+                producto.CodigoInterno = dto.CodigoInterno;
                 producto.CodigoBarras = dto.CodigoBarras;
                 producto.Categoria = dto.Categoria;
                 producto.UnidadMedida = dto.UnidadMedida;
-                producto.PesoUnitario = dto.PesoUnitario;
+                producto.FechaModificacion = DateTime.Now;
 
                 await _context.SaveChangesAsync();
 
@@ -244,7 +242,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                     throw new InvalidOperationException("Producto no encontrado");
 
                 // Verificar si el producto está siendo usado en auditorías
-                var enUso = await _context.DetallesAuditoria.AnyAsync(d => d.ProductoID == id);
+                var enUso = await _context.AuditoriaDetalle.AnyAsync(d => d.ProductoID == id);
                 if (enUso)
                     throw new InvalidOperationException("No se puede eliminar el producto porque está siendo usado en auditorías");
 
@@ -302,7 +300,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                         var pesoUnitario = row.Cell(7).TryGetValue(out decimal peso) ? peso : (decimal?)null;
 
                         // Validar SKU único
-                        if (await _context.Productos.AnyAsync(p => p.SKU == sku))
+                        if (await _context.Productos.AnyAsync(p => p.CodigoInterno == sku))
                         {
                             result.Fallidos++;
                             result.Errores.Add($"Fila {result.TotalRegistros}: SKU duplicado - {sku}");
@@ -362,12 +360,12 @@ namespace AuditoriaRecepcion.Services.Implementation
                 if (!string.IsNullOrEmpty(busqueda))
                 {
                     query = query.Where(p =>
-                        p.SKU.Contains(busqueda) ||
-                        p.Nombre.Contains(busqueda) ||
+                        p.CodigoInterno.Contains(busqueda) ||
+                        p.Descripcion.Contains(busqueda) ||
                         p.CodigoBarras.Contains(busqueda));
                 }
 
-                var productos = await query.OrderBy(p => p.Nombre).ToListAsync();
+                var productos = await query.OrderBy(p => p.Descripcion).ToListAsync();
 
                 using var workbook = new XLWorkbook();
                 var worksheet = workbook.Worksheets.Add("Productos");
@@ -392,15 +390,14 @@ namespace AuditoriaRecepcion.Services.Implementation
                 int row = 2;
                 foreach (var producto in productos)
                 {
-                    worksheet.Cell(row, 1).Value = producto.SKU;
-                    worksheet.Cell(row, 2).Value = producto.Nombre;
+                    worksheet.Cell(row, 1).Value = producto.CodigoInterno;
+                    worksheet.Cell(row, 2).Value = producto.CodigoInterno;
                     worksheet.Cell(row, 3).Value = producto.Descripcion;
                     worksheet.Cell(row, 4).Value = producto.CodigoBarras;
                     worksheet.Cell(row, 5).Value = producto.Categoria;
                     worksheet.Cell(row, 6).Value = producto.UnidadMedida;
-                    worksheet.Cell(row, 7).Value = producto.PesoUnitario;
-                    worksheet.Cell(row, 8).Value = producto.Activo ? "Sí" : "No";
-                    worksheet.Cell(row, 9).Value = producto.FechaCreacion.ToString("dd/MM/yyyy");
+                    worksheet.Cell(row, 7).Value = producto.Activo ? "Sí" : "No";
+                    worksheet.Cell(row, 8).Value = producto.FechaCreacion.ToString("dd/MM/yyyy");
                     row++;
                 }
 
@@ -430,7 +427,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                 FechaHora = DateTime.Now
             };
 
-            _context.AuditoriasAcciones.Add(auditoria);
+            _context.AuditoriasRecepcionAcciones.Add(auditoria);
             await _context.SaveChangesAsync();
         }
 
@@ -439,13 +436,13 @@ namespace AuditoriaRecepcion.Services.Implementation
             return new ProductoDTO
             {
                 ProductoID = producto.ProductoID,
-                SKU = producto.SKU,
-                Nombre = producto.Nombre,
+                SKU = producto.CodigoInterno,
+                SKU = producto.CodigoInterno,
+                Nombre = producto.Descripcion,
                 Descripcion = producto.Descripcion,
                 CodigoBarras = producto.CodigoBarras,
                 Categoria = producto.Categoria,
                 UnidadMedida = producto.UnidadMedida,
-                PesoUnitario = producto.PesoUnitario,
                 Activo = producto.Activo,
                 FechaCreacion = producto.FechaCreacion
             };

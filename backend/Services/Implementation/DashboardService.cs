@@ -25,32 +25,32 @@ namespace AuditoriaRecepcion.Services.Implementation
                 fechaDesde ??= DateTime.Now.AddMonths(-1);
                 fechaHasta ??= DateTime.Now;
 
-                var auditorias = await _context.Auditorias
-                    .Where(a => a.FechaCreacion >= fechaDesde && a.FechaCreacion <= fechaHasta)
+                var auditorias = await _context.AuditoriasRecepcion
+                    .Where(a => a.FechaInicio >= fechaDesde && a.FechaInicio <= fechaHasta)
                     .ToListAsync();
 
                 var incidencias = await _context.Incidencias
-                    .Where(i => i.FechaDeteccion >= fechaDesde && i.FechaDeteccion <= fechaHasta)
+                    .Where(i => i.FechaReporte >= fechaDesde && i.FechaReporte <= fechaHasta)
                     .ToListAsync();
 
                 var totalAuditorias = auditorias.Count;
-                var auditoriasAbiertas = auditorias.Count(a => a.Estado == "Abierta");
-                var auditoriasCerradas = auditorias.Count(a => a.Estado == "Cerrada");
+                var auditoriasAbiertas = auditorias.Count(a => a.EstadoAuditoria == "Abierta");
+                var auditoriasCerradas = auditorias.Count(a => a.EstadoAuditoria == "Cerrada");
                 var tasaCierre = totalAuditorias > 0 ? (decimal)auditoriasCerradas / totalAuditorias * 100 : 0;
 
                 var totalIncidencias = incidencias.Count;
-                var incidenciasPendientes = incidencias.Count(i => i.EstadoResolucion == "Pendiente");
-                var incidenciasResueltas = incidencias.Count(i => i.EstadoResolucion == "Resuelta");
+                var incidenciasPendientes = incidencias.Count(i => i.EstadoIncidencia == "Pendiente");
+                var incidenciasResueltas = incidencias.Count(i => i.EstadoIncidencia == "Resuelta");
                 var tasaResolucion = totalIncidencias > 0 ? (decimal)incidenciasResueltas / totalIncidencias * 100 : 0;
 
                 var incidenciasConTiempo = incidencias.Where(i => i.FechaResolucion.HasValue).ToList();
                 var tiempoPromedioResolucion = incidenciasConTiempo.Any()
-                    ? (decimal)incidenciasConTiempo.Average(i => (i.FechaResolucion!.Value - i.FechaDeteccion).TotalHours)
+                    ? (decimal)incidenciasConTiempo.Average(i => (i.FechaResolucion!.Value - i.FechaReporte).TotalHours)
                     : 0;
 
-                var detalles = await _context.DetallesAuditoria
+                var detalles = await _context.AuditoriaDetalle
                     .Include(d => d.Auditoria)
-                    .Where(d => d.Auditoria.FechaCreacion >= fechaDesde && d.Auditoria.FechaCreacion <= fechaHasta)
+                    .Where(d => d.Auditoria.FechaInicio >= fechaDesde && d.Auditoria.FechaInicio <= fechaHasta)
                     .ToListAsync();
 
                 var totalProductosAuditados = detalles.Count;
@@ -60,9 +60,9 @@ namespace AuditoriaRecepcion.Services.Implementation
                     : 100;
 
                 var proveedoresActivos = await _context.Proveedores.CountAsync(p => p.Activo);
-                var proveedoresConIncidencias = await _context.Auditorias
+                var proveedoresConIncidencias = await _context.AuditoriasRecepcion
                     .Include(a => a.Incidencias)
-                    .Where(a => a.FechaCreacion >= fechaDesde && a.FechaCreacion <= fechaHasta && a.Incidencias.Any())
+                    .Where(a => a.FechaInicio >= fechaDesde && a.FechaInicio <= fechaHasta && a.Incidencias.Any())
                     .Select(a => a.ProveedorID)
                     .Distinct()
                     .CountAsync();
@@ -72,8 +72,8 @@ namespace AuditoriaRecepcion.Services.Implementation
                 var fechaDesdePeriodoAnterior = fechaDesde.Value.AddDays(-duracionPeriodo);
                 var fechaHastaPeriodoAnterior = fechaDesde.Value.AddDays(-1);
 
-                var auditoriasAnterior = await _context.Auditorias
-                    .CountAsync(a => a.FechaCreacion >= fechaDesdePeriodoAnterior && a.FechaCreacion <= fechaHastaPeriodoAnterior);
+                var auditoriasAnterior = await _context.AuditoriasRecepcion
+                    .CountAsync(a => a.FechaInicio >= fechaDesdePeriodoAnterior && a.FechaInicio <= fechaHastaPeriodoAnterior);
 
                 var cambioAuditorias = auditoriasAnterior > 0
                     ? ((decimal)totalAuditorias - auditoriasAnterior) / auditoriasAnterior * 100
@@ -114,22 +114,22 @@ namespace AuditoriaRecepcion.Services.Implementation
                 fechaDesde ??= DateTime.Now.AddMonths(-1);
                 fechaHasta ??= DateTime.Now;
 
-                var auditorias = await _context.Auditorias
+                var auditorias = await _context.AuditoriasRecepcion
                     .Include(a => a.Detalles)
-                    .Where(a => a.FechaCreacion >= fechaDesde && a.FechaCreacion <= fechaHasta)
+                    .Where(a => a.FechaInicio >= fechaDesde && a.FechaInicio <= fechaHasta)
                     .ToListAsync();
 
                 var totalAuditorias = auditorias.Count;
-                var auditoriasAbiertas = auditorias.Count(a => a.Estado == "Abierta");
-                var auditoriasCerradas = auditorias.Count(a => a.Estado == "Cerrada");
+                var auditoriasAbiertas = auditorias.Count(a => a.EstadoAuditoria == "Abierta");
+                var auditoriasCerradas = auditorias.Count(a => a.EstadoAuditoria == "Cerrada");
 
                 var promedioProductosPorAuditoria = auditorias.Any()
                     ? (decimal)auditorias.Average(a => a.Detalles.Count)
                     : 0;
 
-                var auditoriasCerradasConTiempo = auditorias.Where(a => a.FechaCierre.HasValue).ToList();
+                var auditoriasCerradasConTiempo = auditorias.Where(a => a.FechaFinalizacion.HasValue).ToList();
                 var promedioTiempoCierre = auditoriasCerradasConTiempo.Any()
-                    ? (decimal)auditoriasCerradasConTiempo.Average(a => (a.FechaCierre!.Value - a.FechaCreacion).TotalHours)
+                    ? (decimal)auditoriasCerradasConTiempo.Average(a => (a.FechaFinalizacion!.Value - a.FechaInicio).TotalHours)
                     : 0;
 
                 // Serie temporal (simplificada)
@@ -137,13 +137,13 @@ namespace AuditoriaRecepcion.Services.Implementation
                 // TODO: Implementar agrupación por día/semana/mes
 
                 var distribucionPorEstado = auditorias
-                    .GroupBy(a => a.Estado)
+                    .GroupBy(a => a.EstadoAuditoria)
                     .ToDictionary(g => g.Key, g => g.Count());
 
                 // Top usuarios
                 var topUsuarios = auditorias
                     .Where(a => a.UsuarioCreacionID.HasValue)
-                    .GroupBy(a => new { a.UsuarioCreacionID, a.UsuarioCreacion.NombreCompleto })
+                    .GroupBy(a => new { a.UsuarioCreacionID, a.UsuarioAuditor.NombreCompleto })
                     .Select(g => new TopUsuarioAuditoriasDTO
                     {
                         UsuarioID = g.Key.UsuarioCreacionID.Value,
@@ -182,24 +182,24 @@ namespace AuditoriaRecepcion.Services.Implementation
                 fechaHasta ??= DateTime.Now;
 
                 var incidencias = await _context.Incidencias
-                    .Where(i => i.FechaDeteccion >= fechaDesde && i.FechaDeteccion <= fechaHasta)
+                    .Where(i => i.FechaReporte >= fechaDesde && i.FechaReporte <= fechaHasta)
                     .ToListAsync();
 
                 var totalIncidencias = incidencias.Count;
-                var pendientes = incidencias.Count(i => i.EstadoResolucion == "Pendiente");
-                var enProceso = incidencias.Count(i => i.EstadoResolucion == "EnProceso");
-                var resueltas = incidencias.Count(i => i.EstadoResolucion == "Resuelta");
-                var rechazadas = incidencias.Count(i => i.EstadoResolucion == "Rechazada");
+                var pendientes = incidencias.Count(i => i.EstadoIncidencia == "Pendiente");
+                var enProceso = incidencias.Count(i => i.EstadoIncidencia == "EnProceso");
+                var resueltas = incidencias.Count(i => i.EstadoIncidencia == "Resuelta");
+                var rechazadas = incidencias.Count(i => i.EstadoIncidencia == "Rechazada");
 
                 var tasaResolucion = totalIncidencias > 0 ? (decimal)resueltas / totalIncidencias * 100 : 0;
 
                 var incidenciasConTiempo = incidencias.Where(i => i.FechaResolucion.HasValue).ToList();
                 var tiempoPromedioResolucion = incidenciasConTiempo.Any()
-                    ? (decimal)incidenciasConTiempo.Average(i => (i.FechaResolucion!.Value - i.FechaDeteccion).TotalHours)
+                    ? (decimal)incidenciasConTiempo.Average(i => (i.FechaResolucion!.Value - i.FechaReporte).TotalHours)
                     : 0;
 
                 var tiempoMedianoResolucion = incidenciasConTiempo.Any()
-                    ? CalcularMediana(incidenciasConTiempo.Select(i => (i.FechaResolucion!.Value - i.FechaDeteccion).TotalHours).ToList())
+                    ? CalcularMediana(incidenciasConTiempo.Select(i => (i.FechaResolucion!.Value - i.FechaReporte).TotalHours).ToList())
                     : 0;
 
                 var distribucionPorTipo = incidencias
@@ -239,10 +239,10 @@ namespace AuditoriaRecepcion.Services.Implementation
                 fechaDesde ??= DateTime.Now.AddMonths(-3);
                 fechaHasta ??= DateTime.Now;
 
-                var resultado = await _context.Auditorias
+                var resultado = await _context.AuditoriasRecepcion
                     .Include(a => a.Proveedor)
                     .Include(a => a.Incidencias)
-                    .Where(a => a.FechaRecepcion >= fechaDesde && a.FechaRecepcion <= fechaHasta)
+                    .Where(a => a.FechaInicio >= fechaDesde && a.FechaInicio <= fechaHasta)
                     .GroupBy(a => new { a.ProveedorID, a.Proveedor.RazonSocial })
                     .Select(g => new TopProveedorIncidenciasDTO
                     {
@@ -276,7 +276,7 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 var resultado = await _context.Incidencias
                     .Include(i => i.Producto)
-                    .Where(i => i.FechaDeteccion >= fechaDesde && i.FechaDeteccion <= fechaHasta && i.ProductoID.HasValue)
+                    .Where(i => i.FechaReporte >= fechaDesde && i.FechaReporte <= fechaHasta && i.ProductoID.HasValue)
                     .GroupBy(i => new { i.ProductoID, i.Producto.Nombre, i.Producto.SKU })
                     .Select(g => new TopProductoIncidenciasDTO
                     {
@@ -309,7 +309,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                 fechaHasta ??= DateTime.Now;
 
                 var incidencias = await _context.Incidencias
-                    .Where(i => i.FechaDeteccion >= fechaDesde && i.FechaDeteccion <= fechaHasta)
+                    .Where(i => i.FechaReporte >= fechaDesde && i.FechaReporte <= fechaHasta)
                     .ToListAsync();
 
                 var total = incidencias.Count;
@@ -365,30 +365,30 @@ namespace AuditoriaRecepcion.Services.Implementation
                 var inicioFecha = fecha.Date;
                 var finFecha = fecha.Date.AddDays(1);
 
-                var auditoriasCreadas = await _context.Auditorias
-                    .CountAsync(a => a.FechaCreacion >= inicioFecha && a.FechaCreacion < finFecha);
+                var auditoriasCreadas = await _context.AuditoriasRecepcion
+                    .CountAsync(a => a.FechaInicio >= inicioFecha && a.FechaInicio < finFecha);
 
-                var auditoriasCerradas = await _context.Auditorias
-                    .CountAsync(a => a.FechaCierre.HasValue && a.FechaCierre >= inicioFecha && a.FechaCierre < finFecha);
+                var auditoriasCerradas = await _context.AuditoriasRecepcion
+                    .CountAsync(a => a.FechaFinalizacion.HasValue && a.FechaFinalizacion >= inicioFecha && a.FechaFinalizacion < finFecha);
 
-                var auditoriasAbiertas = await _context.Auditorias
-                    .CountAsync(a => a.Estado == "Abierta");
+                var auditoriasAbiertas = await _context.AuditoriasRecepcion
+                    .CountAsync(a => a.EstadoAuditoria == "Abierta");
 
                 var incidenciasNuevas = await _context.Incidencias
-                    .CountAsync(i => i.FechaDeteccion >= inicioFecha && i.FechaDeteccion < finFecha);
+                    .CountAsync(i => i.FechaReporte >= inicioFecha && i.FechaReporte < finFecha);
 
                 var incidenciasResueltas = await _context.Incidencias
                     .CountAsync(i => i.FechaResolucion.HasValue && i.FechaResolucion >= inicioFecha && i.FechaResolucion < finFecha);
 
                 var incidenciasPendientes = await _context.Incidencias
-                    .CountAsync(i => i.EstadoResolucion == "Pendiente" || i.EstadoResolucion == "EnProceso");
+                    .CountAsync(i => i.EstadoIncidencia == "Pendiente" || i.EstadoIncidencia == "EnProceso");
 
-                var productosAuditados = await _context.DetallesAuditoria
+                var productosAuditados = await _context.AuditoriaDetalle
                     .Include(d => d.Auditoria)
-                    .CountAsync(d => d.Auditoria.FechaCreacion >= inicioFecha && d.Auditoria.FechaCreacion < finFecha);
+                    .CountAsync(d => d.Auditoria.FechaInicio >= inicioFecha && d.Auditoria.FechaInicio < finFecha);
 
                 var evidenciasSubidas = await _context.Evidencias
-                    .CountAsync(e => e.FechaCarga >= inicioFecha && e.FechaCarga < finFecha);
+                    .CountAsync(e => e.FechaSubida >= inicioFecha && e.FechaSubida < finFecha);
 
                 return new ResumenDiarioDTO
                 {

@@ -1,4 +1,5 @@
 using AuditoriaRecepcion.DTOs.Usuario;
+using AuditoriaRecepcion.DTOs.Auth;
 using AuditoriaRecepcion.DTOs.Common;
 
 namespace AuditoriaRecepcion.Services.Interfaces

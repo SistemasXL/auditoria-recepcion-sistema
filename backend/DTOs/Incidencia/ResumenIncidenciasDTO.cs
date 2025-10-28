@@ -1,3 +1,5 @@
+using AuditoriaRecepcion.DTOs.Dashboard;
+
 namespace AuditoriaRecepcion.DTOs.Incidencia
 {
     public class ResumenIncidenciasDTO

@@ -1,3 +1,8 @@
+using AuditoriaRecepcion.DTOs.Proveedor;
+using AuditoriaRecepcion.DTOs.Usuario;
+using AuditoriaRecepcion.DTOs.Incidencia;
+using AuditoriaRecepcion.DTOs.Evidencia;
+
 namespace AuditoriaRecepcion.DTOs.Auditoria
 {
     public class AuditoriaDetalleDTO

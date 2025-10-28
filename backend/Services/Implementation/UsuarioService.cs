@@ -1,5 +1,6 @@
 using AuditoriaRecepcion.Data;
 using AuditoriaRecepcion.DTOs.Usuario;
+using AuditoriaRecepcion.DTOs.Auth;
 using AuditoriaRecepcion.DTOs.Common;
 using AuditoriaRecepcion.Models;
 using AuditoriaRecepcion.Services.Interfaces;
@@ -36,7 +37,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                 if (!string.IsNullOrEmpty(filtro.Busqueda))
                 {
                     query = query.Where(u =>
-                        u.Usuario.Contains(filtro.Busqueda) ||
+                        u.NombreUsuario.Contains(filtro.Busqueda) ||
                         u.NombreCompleto.Contains(filtro.Busqueda) ||
                         u.Email.Contains(filtro.Busqueda));
                 }
@@ -72,7 +73,6 @@ namespace AuditoriaRecepcion.Services.Implementation
             try
             {
                 var usuario = await _context.Usuarios
-                    .Include(u => u.UsuarioCreacion)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(u => u.UsuarioID == id);
 
@@ -80,30 +80,29 @@ namespace AuditoriaRecepcion.Services.Implementation
                     return null;
 
                 // Obtener estadísticas
-                var totalAuditorias = await _context.Auditorias
-                    .CountAsync(a => a.UsuarioCreacionID == id);
+                var totalAuditorias = await _context.AuditoriasRecepcion
+                    .CountAsync(a => a.UsuarioAuditorID == id);
 
                 var totalIncidenciasDetectadas = await _context.Incidencias
-                    .CountAsync(i => i.UsuarioReportoID == id);
+                    .CountAsync(i => i.UsuarioReportaID == id);
 
                 var totalIncidenciasAsignadas = await _context.Incidencias
-                    .CountAsync(i => i.UsuarioAsignadoID == id);
+                    .CountAsync(i => i.UsuarioResponsableID == id);
 
                 var incidenciasResueltasAsignadas = await _context.Incidencias
-                    .CountAsync(i => i.UsuarioAsignadoID == id && i.EstadoResolucion == "Resuelta");
+                    .CountAsync(i => i.UsuarioResponsableID == id && i.EstadoIncidencia == "Resuelta");
 
                 return new UsuarioDetalleDTO
                 {
                     UsuarioID = usuario.UsuarioID,
-                    Usuario = usuario.Usuario,
+                    Usuario = usuario.NombreUsuario,
                     NombreCompleto = usuario.NombreCompleto,
                     Email = usuario.Email,
-                    Telefono = usuario.Telefono,
                     Rol = usuario.Rol,
                     Activo = usuario.Activo,
                     FechaCreacion = usuario.FechaCreacion,
                     UltimoAcceso = usuario.UltimoAcceso,
-                    CreadoPorNombre = usuario.UsuarioCreacion?.NombreCompleto,
+                    // CreadoPor no existe como navegación en Usuario
                     TotalAuditorias = totalAuditorias,
                     TotalIncidenciasDetectadas = totalIncidenciasDetectadas,
                     TotalIncidenciasAsignadas = totalIncidenciasAsignadas,
@@ -123,7 +122,7 @@ namespace AuditoriaRecepcion.Services.Implementation
             try
             {
                 // Validar usuario único
-                if (await _context.Usuarios.AnyAsync(u => u.Usuario == dto.Usuario))
+                if (await _context.Usuarios.AnyAsync(u => u.NombreUsuario == dto.Usuario))
                     throw new InvalidOperationException($"Ya existe un usuario con el nombre: {dto.Usuario}");
 
                 // Validar email único
@@ -132,14 +131,12 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 var usuario = new Usuario
                 {
-                    Usuario = dto.Usuario,
+                    NombreUsuario = dto.Usuario,
                     NombreCompleto = dto.NombreCompleto,
                     Email = dto.Email,
-                    Telefono = dto.Telefono,
                     Rol = dto.Rol,
                     ContrasenaHash = HashPassword(dto.Contrasena),
                     Activo = dto.Activo,
-                    UsuarioCreacionID = adminId,
                     FechaCreacion = DateTime.Now
                 };
 
@@ -150,7 +147,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                 await RegistrarAuditoriaAccionAsync(adminId, "Crear", "Usuario", usuario.UsuarioID);
 
                 // Enviar email de bienvenida
-                await _emailService.SendWelcomeEmailAsync(usuario.Email, usuario.Usuario, dto.Contrasena);
+                await _emailService.SendWelcomeEmailAsync(usuario.Email, usuario.NombreUsuario, dto.Contrasena);
 
                 await transaction.CommitAsync();
 
@@ -182,7 +179,6 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 usuario.NombreCompleto = dto.NombreCompleto;
                 usuario.Email = dto.Email;
-                usuario.Telefono = dto.Telefono;
                 usuario.Rol = dto.Rol;
                 usuario.FechaModificacion = DateTime.Now;
 
@@ -260,7 +256,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                 await RegistrarAuditoriaAccionAsync(adminId, "ResetearContrasena", "Usuario", id);
 
                 // Enviar email
-                await _emailService.SendPasswordResetEmailAsync(usuario.Email, usuario.Usuario, newPassword);
+                await _emailService.SendPasswordResetEmailAsync(usuario.Email, usuario.NombreUsuario, newPassword);
 
                 await transaction.CommitAsync();
 
@@ -294,20 +290,19 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 // Estadísticas del mes actual
                 var inicioMes = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
-                var auditoriasMesActual = await _context.Auditorias
-                    .CountAsync(a => a.UsuarioCreacionID == userId && a.FechaCreacion >= inicioMes);
+                var auditoriasMesActual = await _context.AuditoriasRecepcion
+                    .CountAsync(a => a.UsuarioAuditorID == userId && a.FechaInicio >= inicioMes);
 
                 var incidenciasPendientesAsignadas = await _context.Incidencias
-                    .CountAsync(i => i.UsuarioAsignadoID == userId &&
-                                    (i.EstadoResolucion == "Pendiente" || i.EstadoResolucion == "EnProceso"));
+                    .CountAsync(i => i.UsuarioResponsableID == userId &&
+                                    (i.EstadoIncidencia == "Pendiente" || i.EstadoIncidencia == "EnProceso"));
 
                 return new UsuarioPerfilDTO
                 {
                     UsuarioID = usuario.UsuarioID,
-                    Usuario = usuario.Usuario,
+                    Usuario = usuario.NombreUsuario,
                     NombreCompleto = usuario.NombreCompleto,
                     Email = usuario.Email,
-                    Telefono = usuario.Telefono,
                     Rol = usuario.Rol,
                     FechaCreacion = usuario.FechaCreacion,
                     UltimoAcceso = usuario.UltimoAcceso,
@@ -338,7 +333,6 @@ namespace AuditoriaRecepcion.Services.Implementation
 
                 usuario.NombreCompleto = dto.NombreCompleto;
                 usuario.Email = dto.Email;
-                usuario.Telefono = dto.Telefono;
                 usuario.FechaModificacion = DateTime.Now;
 
                 await _context.SaveChangesAsync();
@@ -364,7 +358,7 @@ namespace AuditoriaRecepcion.Services.Implementation
         {
             try
             {
-                var query = _context.AuditoriasAcciones
+                var query = _context.AuditoriaLogs
                     .Where(a => a.UsuarioID == userId)
                     .AsQueryable();
 
@@ -379,13 +373,13 @@ namespace AuditoriaRecepcion.Services.Implementation
                     .Take(limit)
                     .Select(a => new ActividadUsuarioDTO
                     {
-                        ActividadID = a.AuditoriaAccionID,
+                        ActividadID = a.LogID,
                         TipoAccion = a.TipoAccion,
                         TablaAfectada = a.TablaAfectada,
                         RegistroID = a.RegistroID,
                         Descripcion = $"{a.TipoAccion} en {a.TablaAfectada}",
                         FechaHora = a.FechaHora,
-                        DireccionIP = a.DireccionIP
+                        DireccionIP = ""
                     })
                     .ToListAsync();
 
@@ -469,7 +463,7 @@ namespace AuditoriaRecepcion.Services.Implementation
                     UsuariosInactivos = usuariosInactivos,
                     UsuariosPorRol = usuariosPorRol,
                     UsuariosConectadosHoy = usuariosConectadosHoy,
-                    UltimoUsuarioCreado = ultimoUsuario?.FechaCreacion
+                    UltimoUsuarioCreado = ultimoUsuario?.FechaInicio
                 };
             }
             catch (Exception ex)
@@ -483,7 +477,7 @@ namespace AuditoriaRecepcion.Services.Implementation
         {
             try
             {
-                return !await _context.Usuarios.AnyAsync(u => u.Usuario == username);
+                return !await _context.Usuarios.AnyAsync(u => u.NombreUsuario == username);
             }
             catch (Exception ex)
             {
@@ -508,17 +502,25 @@ namespace AuditoriaRecepcion.Services.Implementation
         // Métodos privados auxiliares
         private async Task RegistrarAuditoriaAccionAsync(int userId, string accion, string tabla, int registroId)
         {
-            var auditoria = new AuditoriaAccion
+            try
             {
-                UsuarioID = userId,
-                TipoAccion = accion,
-                TablaAfectada = tabla,
-                RegistroID = registroId,
-                FechaHora = DateTime.Now
-            };
+                var log = new AuditoriaLog
+                {
+                    UsuarioID = userId,
+                    TipoAccion = accion,
+                    TablaAfectada = tabla,
+                    RegistroID = registroId,
+                    FechaHora = DateTime.Now
+                };
 
-            _context.AuditoriasAcciones.Add(auditoria);
-            await _context.SaveChangesAsync();
+                _context.AuditoriaLogs.Add(log);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al registrar auditoría de acción");
+                // No lanzar excepción para no afectar el flujo principal
+            }
         }
 
         private string HashPassword(string password)
@@ -549,7 +551,7 @@ namespace AuditoriaRecepcion.Services.Implementation
             return new UsuarioDTO
             {
                 UsuarioID = usuario.UsuarioID,
-                Usuario = usuario.Usuario,
+                Usuario = usuario.NombreUsuario,
                 NombreCompleto = usuario.NombreCompleto,
                 Email = usuario.Email,
                 Rol = usuario.Rol,

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using AuditoriaRecepcion.DTOs;
+using AuditoriaRecepcion.DTOs.Auth;
+using AuditoriaRecepcion.DTOs.Usuario;
 using AuditoriaRecepcion.Services.Interfaces;
 
 namespace AuditoriaRecepcion.Controllers

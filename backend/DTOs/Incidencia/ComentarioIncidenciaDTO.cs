@@ -1,3 +1,5 @@
+using AuditoriaRecepcion.DTOs.Usuario;
+
 namespace AuditoriaRecepcion.DTOs.Incidencia
 {
     public class ComentarioIncidenciaDTO
