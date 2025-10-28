@@ -8,7 +8,7 @@ interface PrivateRouteProps {
 }
 
 export const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
-  // 🔓 COMENTAR TEMPORALMENTE PARA DESARROLLO
+  // 🔓 COMENTAR TEMPORALMENTE PARA DESARROLLO SIN BACKEND
   // const { isAuthenticated, isLoading } = useAuth();
   // const location = useLocation();
 
@@ -20,6 +20,6 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   //   return <Navigate to="/login" state={{ from: location }} replace />;
   // }
 
-  // ✅ PERMITIR ACCESO SIN AUTENTICACIÓN (SOLO PARA DESARROLLO)
+  // ✅ ACCESO DIRECTO (SOLO PARA DESARROLLO)
   return <>{children}</>;
 };

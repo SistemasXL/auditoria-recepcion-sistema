@@ -8,14 +8,14 @@ import { theme } from './styles/theme';
 import { useAuth } from '@hooks/useAuth';
 
 function App() {
-  const { loadUser, isAuthenticated } = useAuth();
+  // Comentar temporalmente si da error
+  // const { loadUser, isAuthenticated } = useAuth();
 
-  // Cargar usuario al iniciar la app si está autenticado
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadUser();
-    }
-  }, [isAuthenticated, loadUser]);
+  // useEffect(() => {
+  //   if (isAuthenticated) {
+  //     loadUser();
+  //   }
+  // }, [isAuthenticated, loadUser]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -24,7 +24,6 @@ function App() {
         <AppRoutes />
       </BrowserRouter>
       
-      {/* Notificaciones Toast */}
       <Toaster
         position="top-right"
         toastOptions={{

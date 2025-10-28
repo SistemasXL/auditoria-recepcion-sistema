@@ -1,108 +1,43 @@
 import { apiService } from './api.service';
-import { ENDPOINTS } from '@config/api.config';
 
-export interface ReporteAuditoriasParams {
+interface ReporteParams {
   dateFrom?: string;
   dateTo?: string;
   proveedorId?: number;
   estado?: string;
-  usuarioId?: number;
 }
 
-export interface ReporteIncidenciasParams {
-  dateFrom?: string;
-  dateTo?: string;
-  tipo?: string;
-  severidad?: string;
-  estado?: string;
-  proveedorId?: number;
-}
+const exportarPDF = async (tipo: string, params?: ReporteParams): Promise<void> => {
+  const response = await apiService.get(`/reportes/${tipo}/pdf`, {
+    params,
+    responseType: 'blob',
+  });
 
-export interface ReporteProveedoresParams {
-  dateFrom?: string;
-  dateTo?: string;
-  proveedorId?: number;
-}
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `reporte-${tipo}-${new Date().getTime()}.pdf`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
 
-class ReportesService {
-  /**
-   * Obtener datos de reporte de auditorías
-   */
-  async getReporteAuditorias(params: ReporteAuditoriasParams): Promise<any> {
-    const response = await apiService.get(
-      ENDPOINTS.REPORTES.AUDITORIAS,
-      { params }
-    );
-    return response.data;
-  }
+const exportarExcel = async (tipo: string, params?: ReporteParams): Promise<void> => {
+  const response = await apiService.get(`/reportes/${tipo}/excel`, {
+    params,
+    responseType: 'blob',
+  });
 
-  /**
-   * Obtener datos de reporte de incidencias
-   */
-  async getReporteIncidencias(params: ReporteIncidenciasParams): Promise<any> {
-    const response = await apiService.get(
-      ENDPOINTS.REPORTES.INCIDENCIAS,
-      { params }
-    );
-    return response.data;
-  }
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `reporte-${tipo}-${new Date().getTime()}.xlsx`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
 
-  /**
-   * Obtener datos de reporte de proveedores
-   */
-  async getReporteProveedores(params: ReporteProveedoresParams): Promise<any> {
-    const response = await apiService.get(
-      ENDPOINTS.REPORTES.PROVEEDORES,
-      { params }
-    );
-    return response.data;
-  }
-
-  /**
-   * Exportar reporte a PDF
-   */
-  async exportarPDF(tipo: 'auditorias' | 'incidencias' | 'proveedores', params: any): Promise<void> {
-    const queryParams = new URLSearchParams({
-      tipo,
-      ...params,
-    }).toString();
-
-    const filename = `reporte_${tipo}_${new Date().getTime()}.pdf`;
-    
-    await apiService.downloadFile(
-      `${ENDPOINTS.REPORTES.EXPORT_PDF}?${queryParams}`,
-      filename
-    );
-  }
-
-  /**
-   * Exportar reporte a Excel
-   */
-  async exportarExcel(tipo: 'auditorias' | 'incidencias' | 'proveedores', params: any): Promise<void> {
-    const queryParams = new URLSearchParams({
-      tipo,
-      ...params,
-    }).toString();
-
-    const filename = `reporte_${tipo}_${new Date().getTime()}.xlsx`;
-    
-    await apiService.downloadFile(
-      `${ENDPOINTS.REPORTES.EXPORT_EXCEL}?${queryParams}`,
-      filename
-    );
-  }
-
-  /**
-   * Generar reporte de auditoría específica en PDF
-   */
-  async generarReporteAuditoriaPDF(auditoriaId: number): Promise<void> {
-    const filename = `auditoria_${auditoriaId}_${new Date().getTime()}.pdf`;
-    
-    await apiService.downloadFile(
-      `${ENDPOINTS.REPORTES.EXPORT_PDF}?tipo=auditoria&id=${auditoriaId}`,
-      filename
-    );
-  }
-}
-
-export const reportesService = new ReportesService();
+export const reportesService = {
+  exportarPDF,
+  exportarExcel,
+};

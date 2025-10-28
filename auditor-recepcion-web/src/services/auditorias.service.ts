@@ -1,115 +1,102 @@
 import { apiService } from './api.service';
-import { ENDPOINTS } from '@config/api.config';
-import { STORAGE_KEYS } from '@config/constants';
 import { 
-  Usuario, 
-  LoginCredentials, 
-  AuthResponse 
-} from '@types/usuario.types';
-import { ApiResponse } from '@types/api.types';
+  Auditoria, 
+  AuditoriaFormData,
+  ProductoAuditoria,
+  AgregarProductoData,
+  Evidencia,
+} from '@types/auditoria.types';
+import { ApiResponse, PaginatedResponse, PaginationParams } from '@types/api.types';
 
-class AuthService {
-  /**
-   * Login de usuario
-   */
-  async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await apiService.post<AuthResponse>(
-      ENDPOINTS.AUTH.LOGIN,
-      credentials
-    );
+const getAuditorias = async (
+  pagination: PaginationParams,
+  filters?: any
+): Promise<PaginatedResponse<Auditoria>> => {
+  const response = await apiService.get<PaginatedResponse<Auditoria>>('/auditorias', {
+    params: {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      ...filters,
+    },
+  });
+  return response.data;
+};
 
-    if (response.success && response.data) {
-      this.saveAuthData(response.data);
+const getAuditoriaById = async (id: number): Promise<Auditoria> => {
+  const response = await apiService.get<ApiResponse<Auditoria>>(`/auditorias/${id}`);
+  return response.data.data;
+};
+
+const createAuditoria = async (data: AuditoriaFormData): Promise<Auditoria> => {
+  const response = await apiService.post<ApiResponse<Auditoria>>('/auditorias', data);
+  return response.data.data;
+};
+
+const updateAuditoria = async (id: number, data: Partial<AuditoriaFormData>): Promise<Auditoria> => {
+  const response = await apiService.put<ApiResponse<Auditoria>>(`/auditorias/${id}`, data);
+  return response.data.data;
+};
+
+const finalizarAuditoria = async (id: number): Promise<Auditoria> => {
+  const response = await apiService.post<ApiResponse<Auditoria>>(`/auditorias/${id}/finalizar`);
+  return response.data.data;
+};
+
+const cerrarAuditoria = async (id: number): Promise<Auditoria> => {
+  const response = await apiService.post<ApiResponse<Auditoria>>(`/auditorias/${id}/cerrar`);
+  return response.data.data;
+};
+
+const getEstadisticas = async (): Promise<any> => {
+  const response = await apiService.get<ApiResponse<any>>('/auditorias/estadisticas');
+  return response.data.data;
+};
+
+const getProductosAuditoria = async (auditoriaId: number): Promise<ProductoAuditoria[]> => {
+  const response = await apiService.get<ApiResponse<ProductoAuditoria[]>>(
+    `/auditorias/${auditoriaId}/productos`
+  );
+  return response.data.data;
+};
+
+const agregarProducto = async (data: AgregarProductoData): Promise<ProductoAuditoria> => {
+  const response = await apiService.post<ApiResponse<ProductoAuditoria>>(
+    `/auditorias/${data.auditoriaId}/productos`,
+    data
+  );
+  return response.data.data;
+};
+
+const getEvidencias = async (auditoriaId: number): Promise<Evidencia[]> => {
+  const response = await apiService.get<ApiResponse<Evidencia[]>>(
+    `/auditorias/${auditoriaId}/evidencias`
+  );
+  return response.data.data;
+};
+
+const subirEvidencia = async (auditoriaId: number, formData: FormData): Promise<Evidencia> => {
+  const response = await apiService.post<ApiResponse<Evidencia>>(
+    `/auditorias/${auditoriaId}/evidencias`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     }
+  );
+  return response.data.data;
+};
 
-    return response.data;
-  }
-
-  /**
-   * Logout de usuario
-   */
-  async logout(): Promise<void> {
-    try {
-      await apiService.post(ENDPOINTS.AUTH.LOGOUT);
-    } finally {
-      this.clearAuthData();
-    }
-  }
-
-  /**
-   * Obtener información del usuario actual
-   */
-  async getCurrentUser(): Promise<Usuario> {
-    const response = await apiService.get<Usuario>(ENDPOINTS.AUTH.ME);
-    return response.data;
-  }
-
-  /**
-   * Cambiar contraseña
-   */
-  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    await apiService.post(ENDPOINTS.AUTH.CHANGE_PASSWORD, {
-      currentPassword,
-      newPassword,
-    });
-  }
-
-  /**
-   * Verificar si el usuario está autenticado
-   */
-  isAuthenticated(): boolean {
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-    return !!token;
-  }
-
-  /**
-   * Obtener token actual
-   */
-  getToken(): string | null {
-    return localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-  }
-
-  /**
-   * Obtener datos del usuario del localStorage
-   */
-  getUserData(): Usuario | null {
-    const userData = localStorage.getItem(STORAGE_KEYS.USER_DATA);
-    return userData ? JSON.parse(userData) : null;
-  }
-
-  /**
-   * Guardar datos de autenticación
-   */
-  private saveAuthData(authData: AuthResponse): void {
-    localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, authData.token);
-    localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, authData.refreshToken);
-    localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(authData.usuario));
-  }
-
-  /**
-   * Limpiar datos de autenticación
-   */
-  private clearAuthData(): void {
-    localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-  }
-
-  /**
-   * Verificar si el token ha expirado
-   */
-  isTokenExpired(): boolean {
-    const token = this.getToken();
-    if (!token) return true;
-
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const expiry = payload.exp * 1000; // Convertir a milisegundos
-      return Date.now() >= expiry;
-    } catch (error) {
-      return true;
-    }
-  }
-}
-
-export const authService = new AuthService();
+export const auditoriasService = {
+  getAuditorias,
+  getAuditoriaById,
+  createAuditoria,
+  updateAuditoria,
+  finalizarAuditoria,
+  cerrarAuditoria,
+  getEstadisticas,
+  getProductosAuditoria,
+  agregarProducto,
+  getEvidencias,
+  subirEvidencia,
+};
