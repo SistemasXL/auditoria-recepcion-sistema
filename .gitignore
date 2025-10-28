@@ -1,0 +1,62 @@
+## Ignorar archivos específicos de Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio cache/options
+.vs/
+.vscode/
+
+## Archivos de usuario de Rider
+.idea/
+
+## NuGet Packages
+*.nupkg
+*.snupkg
+**/packages/*
+
+## Archivos de configuración local
+appsettings.Local.json
+appsettings.*.Local.json
+
+## Storage y archivos temporales
+Storage/
+Logs/
+*.log
+
+## Base de datos local
+*.mdf
+*.ldf
+*.db
+*.sqlite
+
+## Archivos sensibles
+*.pfx
+*.key
+*.pem
+
+## Node modules (si usas frontend)
+node_modules/
+
+## Otros
+*.swp
+*~
+.DS_Store
