@@ -21,6 +21,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Configure Unit of Work
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+// Configure Application Services
+builder.Services.AddScoped<AuditoriaRecepcion.Application.Interfaces.IAuthService, AuditoriaRecepcion.Application.Services.AuthService>();
+builder.Services.AddScoped<AuditoriaRecepcion.Application.Interfaces.IAuditoriaService, AuditoriaRecepcion.Application.Services.AuditoriaService>();
+builder.Services.AddScoped<AuditoriaRecepcion.Application.Interfaces.IProductoService, AuditoriaRecepcion.Application.Services.ProductoService>();
+
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"];
